@@ -94,6 +94,36 @@ QUICK = re.compile(
     r"rename|add the permission|install|show|list|print|what('?s| is| does| did)|how (do|many|big)|"
     r"is the|which|what branch)\b", re.I)
 
+# The same rules in Hebrew: a straight translation of the word lists above.
+# They are separate alternatives with no \b, because \b is ASCII-only in the
+# TypeScript plugin and Hebrew words take prefixes (ה-, ב-, ל-, ו-) anyway.
+# Spell ranges out ([א-ת]) rather than \w, so both languages match alike.
+HEBREW = {
+    "hard": (
+        r"תכנון|תתכנן|ארכיטקטורה|דדלוק|דליפ|שורש הבעיה|ביקורת|אודיט|מוכן לפרודקשן|אטום|"
+        r"תחקור|חקירה|תבין למה|תמצא למה|תמצא מאיפה|תמצא את (?:הסיבה|המקור)|תאתר|תגלה|"
+        r"הנדסה לאחור|תוכיח|תעשה review|ריבוי אזורים|הצפנ|ללא downtime|בלי downtime|"
+        r"(?:תעביר|מיגרציה|העברה).{0,40}(?:על פני|בכל|המונוליט|מסד הנתונים)"),
+    "symptom": (
+        r"למה|באקראי|אקראי|לפעמים|לסירוגין|נתקע|נתקעת|תקוע|קופא|קופץ|קפיצ|יוצא מסנכרון|"
+        r"לא מסונכרן|נפל|נופל|לא זמין|שבור|נשבר|"
+        r"לא (?:עובד|עובדת|עולה|מגיע|מגיעים|מנתב|תואמ|מתעדכן|רואה|רואים|מציג|מתחיל|מצליח)|אף פעם|"
+        r"לא מסכימים|לא תואמ|לא לפי הסדר|שלא לפי הסדר|הורע|החמיר|לא מצליח[א-ת]* לשחזר|"
+        r"אי אפשר לשחזר|אין כלום בלוגים|שום דבר בולט|שום דבר ברור"),
+    "check": (
+        r"בטוח|מאובטח|אבטחה|בידוד|מבודד|פגיעו|replay|תבדוק (?:אם|האם|ש|למה)|תוודא|לוודא|תאמת|"
+        r"האם (?:זה|הוא|היא) (?:נכון|תקין)"),
+    "scope": (
+        r"הכל|כל ה(?:מערכת|קוד|בסיס|פרויקט)|כולו|כל מה ש|לפני השחרור|לפני שאנחנו משחררים|על פני \d+"),
+    "act": r"(?:ו|ואז |אחר כך )(?:תבדוק|תריץ|תבנה|תתקן|תממש|תעדכן|תפרוס|תוודא)",
+}
+HEBREW_QUICK = (
+    r"^\s*(?:(?:כן|בסדר|אוקיי)[,\s]*)?(?:בבקשה\s+)?(?:רק\s+)?"
+    r"(?:תעשה (?:commit|push|pull|merge|stage|tag)|תמשוך|תריץ את הבדיקות|תודה|תשנה את השם|תתקין|"
+    r"תציג|תראה|תדפיס|מה |כמה|איך |איזה|באיזה|על איזה|האם ה|תפתח את ה-PR|תסגור את ה-PR)")
+SIGNALS = {n: re.compile(rx.pattern + "|" + HEBREW[n], re.I) for n, rx in SIGNALS.items()}
+QUICK = re.compile(QUICK.pattern + "|" + HEBREW_QUICK, re.I)
+
 WEIGHTS_FILE = Path(__file__).with_name("weights.json")
 POSITIVE = ("tier", "deep", "effort", "hard", "symptom", "check", "scope", "act", "long")
 NEGATIVE = ("simple", "quick")

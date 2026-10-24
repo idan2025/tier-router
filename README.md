@@ -96,6 +96,20 @@ Caveats:
   matches tev1's own choice on the blind set rather than beating it. Most of the gain comes from the 32 real follow-up prompts.
 - **Its mistakes lean toward a higher tier.** That costs some money, but a task doesn't fail for being given too small a model.
 
+**Hebrew.** The keyword rules used to be English-only, so Hebrew prompts rested on tev1 alone. `eval/hebrew_synthetic.tsv`
+and `eval/hebrew_blind.tsv` are line-for-line translations of the two sets above, with the same labels, so any gap is the
+cost of the language. With the shipped weights:
+
+| | English | Hebrew before | Hebrew now |
+| --- | --- | --- | --- |
+| blind set, accuracy | 91% | 84% | 93% |
+| blind set, Opus tasks missed | 0 of 15 | 3 of 15 | 0 of 15 |
+| 109 published prompts, accuracy | 95% | 87% | 91% |
+
+The Hebrew rules are a plain translation of the English word lists, written before looking at any Hebrew result, and the
+weights are unchanged; English results are identical. Still only 45 blind prompts, translated by one person: a few points
+of that gain may be noise. `python3 -I eval/lang.py` reruns the comparison.
+
 To retune on your own prompts, add lines to `eval/synthetic.tsv` (`label<TAB>prompt`) and run:
 
 ```sh

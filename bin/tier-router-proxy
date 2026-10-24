@@ -29,7 +29,7 @@ start() {
 case "${1:-claude}" in
     start) start && echo "tier-router on http://127.0.0.1:$PORT" ;;
     stop)
-        if pkill -f "[t]ev1_router[.]proxy --port $PORT"; then echo "stopped"; else echo "not running"; fi
+        if pkill -f "[t]ier_router[.]proxy --port $PORT"; then echo "stopped"; else echo "not running"; fi
         rm -f "$STATE/proxy.pid" ;;
     status) if running; then echo "running on port $PORT"; else echo "not running"; fi ;;
     log)

@@ -9,6 +9,7 @@
 //   model starts the prompt cache over.
 // - Subagents keep the model they were given.
 // - If the decision model is unreachable or slow, the turn keeps the session's model.
+// - At session start, tev1 is asked a throwaway question so it is loaded by the first prompt.
 
 import type { EngineInterface as Engine, Register } from 'claude-code'
 
@@ -27,6 +28,7 @@ async function giveUp($: Engine, ms: number): Promise<never> {
 
 /** The decision model's tier for a prompt, or why there is none. */
 async function decide($: Engine, cfg: Config, prompt: string, context: string, current: Tier | undefined): Promise<Decision | string> {
+  if (cfg.backend === 'jev' && !cfg.apiKey) return 'jev needs a jevApiKey (set it in /plugin)'
   const started = await $.clock.now()
   try {
     const res = await Promise.race([
@@ -86,6 +88,15 @@ export const register: Register = (on, options) => {
       description: 'tier-router: show recent routing decisions; `/router off` or `/router on` to switch it',
       argumentHint: '[on|off]',
     })
+    // Load tev1 now: a cold start takes ~40 s, which would make the first
+    // prompt time out. Not awaited, so the session starts at once.
+    if (cfg.backend === 'ollama') {
+      void $.http.fetch(`${cfg.url}/v1/systemone`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: request(cfg.model, 'warm up', '', true),
+      }).catch(() => {})
+    }
     return next(e)
   })
 

@@ -17,6 +17,10 @@ class FakeAPI(BaseHTTPRequestHandler):
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         seen.append({"model": body["model"], "auth": self.headers.get("x-api-key")})
+        if body.get("metadata", {}).get("deny") == body["model"]:
+            msg = b'{"type":"error","error":{"type":"authentication_error","message":"bad key"}}'
+            self.send_response(401); self.send_header("Content-Length", str(len(msg))); self.end_headers()
+            self.wfile.write(msg); return
         if body.get("metadata", {}).get("refuse") == body["model"]:
             msg = b'{"type":"error","error":{"type":"invalid_request_error","message":"nope"}}'
             self.send_response(400); self.send_header("Content-Length", str(len(msg))); self.end_headers()
@@ -89,6 +93,17 @@ def main():
               "h")
         print("    then:", seen[-1]["model"])
         checks[-1] = checks[-1] and seen[-2]["model"] == "h" and seen[-1]["model"] == "claude-opus-5-5"
+        # A credential error is the same for any model: pass it on, do not retry.
+        n = len(seen)
+        try:
+            post({"model": "claude-opus-5-5", "tools": tools, "metadata": {"deny": "h"},
+                  "messages": [{"role": "user", "content": "what's the default port for postgres?"}]})
+            status = 200
+        except urllib.error.HTTPError as err:
+            status = err.code
+        ok = status == 401 and len(seen) == n + 1
+        checks.append(ok)
+        print(f"{'ok ' if ok else 'BAD'} a 401 is passed on without a retry: status {status}, {len(seen) - n} request(s)")
         print("\nlog:")
         for l in open(log):
             e = json.loads(l)

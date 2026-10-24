@@ -15,6 +15,9 @@ import type { EngineInterface as Engine, Register } from 'claude-code'
 
 import { edge, features, request, score, tierFor, type Answers, type Tier } from './classify.ts'
 
+/** This plugin's version, shown by `/router`. Kept equal to plugin.json by tests/test_version.py. */
+const VERSION = '0.2.2'
+
 const HYSTERESIS = 0.03
 const TIMEOUT_MS = 8000
 
@@ -115,7 +118,7 @@ export const register: Register = (on, options) => {
         )
       : ['No prompts routed yet in this session.']
     return {
-      text: [`tier-router is ${isOn ? 'on' : 'off'}. Models: ${models.haiku}, ${models.sonnet}, ${models.opus}.`, '', ...lines].join('\n'),
+      text: [`tier-router ${VERSION} is ${isOn ? 'on' : 'off'}. Models: ${models.haiku}, ${models.sonnet}, ${models.opus}.`, '', ...lines].join('\n'),
     }
   })
 

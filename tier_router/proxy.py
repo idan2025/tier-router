@@ -42,9 +42,11 @@ MODELS = {
 # How far past a threshold a score must be to switch a conversation's model.
 HYSTERESIS = float(os.environ.get("TIER_ROUTER_HYSTERESIS", "0.03"))
 LOG = Path(os.environ.get("TIER_ROUTER_LOG", Path.home() / ".cache/tier-router/decisions.jsonl"))
-# Credential errors are the same whichever model the request names, so a retry
-# with the model Claude Code asked for can only repeat them.
-NO_RETRY = {401, 403}
+# A bad or missing credential (401) is the same whichever model the request
+# names, so a retry with the model Claude Code asked for can only repeat it.
+# Not 403: a key may be refused one model and allowed another, and that retry
+# is what still gets the turn through.
+NO_RETRY = {401}
 HOP_HEADERS = {"host", "content-length", "connection", "keep-alive", "transfer-encoding",
                "accept-encoding", "proxy-connection", "upgrade", "te", "trailer"}
 
@@ -222,7 +224,7 @@ class Handler(BaseHTTPRequestHandler):
             if sent is not body and 400 <= resp.status < 500 and resp.status not in NO_RETRY:
                 # Refused as re-modelled (a parameter that model lacks, or one
                 # the plan does not include): send it as it came.
-                # Auth errors (401, 403) go back to the client as they are.
+                # A 401 goes back to the client as it is.
                 detail = resp.read()[:300].decode(errors="replace")
                 conn.close()
                 if entry is not None:

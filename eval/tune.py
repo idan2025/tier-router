@@ -1,4 +1,5 @@
-"""Fit the router's weights and thresholds on the cached tev1 answers.
+"""Fit the router's weights and thresholds on the decision model's cached answers
+(tev1's by default; ROUTER_MODEL=laya fits laya's, into weights-laya.json).
 
 Errors are not equal: an opus task sent lower (the work fails or is shallow)
 costs 3, an easy task sent to opus (needless spend) costs 2, anything else
@@ -12,8 +13,8 @@ import itertools, json, random, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from tier_router.classify import NEGATIVE, POSITIVE, TIERS, WEIGHTS_FILE, features, score, tier_for
-from collect import HERE, key, load_blind, load_cases
+from tier_router.classify import NEGATIVE, POSITIVE, TIERS, features, score, tier_for, weights_file
+from collect import cache_path, key, load_blind, load_cases
 
 RANK = {t: i for i, t in enumerate(TIERS)}
 
@@ -107,14 +108,14 @@ def pick_with(w):
 
 
 def main():
-    cache = json.loads((HERE / "cache.json").read_text())
+    cache = json.loads(cache_path().read_text())
     rows = []
     for c in load_cases():
         a = cache[key(c)]
         rows.append({**c, "a": a, "f": features(c["prompt"], a)})
 
     print(f"{len(rows)} cases\n")
-    report("tev1 tier choice only", rows, lambda r: r["a"]["tier"]["choice"])
+    report("model's tier choice only", rows, lambda r: r["a"]["tier"]["choice"])
     report("effort score only", rows,
            lambda r: "haiku" if r["a"]["effort"]["score"] < 1.5 else "sonnet" if r["a"]["effort"]["score"] < 2.6 else "opus")
 
@@ -148,15 +149,16 @@ def main():
             a = cache[key(c)]
             blind.append({**c, "a": a, "f": features(c["prompt"], a)})
         print()
-        report("BLIND, tev1 choice only", blind, lambda r: r["a"]["tier"]["choice"])
+        report("BLIND, model's choice only", blind, lambda r: r["a"]["tier"]["choice"])
         report("BLIND, fitted router", blind, pick_with(w_all))
         for r in blind:
             got = pick_with(w_all)(r)
             if got != r["label"]:
                 print(f"  want {r['label']:<6} got {got:<6} {r['prompt'][:80]}")
     if "--write" in sys.argv:
-        WEIGHTS_FILE.write_text(json.dumps(w_all, indent=2) + "\n")
-        print(f"\nwrote {WEIGHTS_FILE}")
+        out = weights_file()
+        out.write_text(json.dumps(w_all, indent=2) + "\n")
+        print(f"\nwrote {out}")
         from tier_router import export_ts
         export_ts.main()
 

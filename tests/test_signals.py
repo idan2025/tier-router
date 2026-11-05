@@ -55,5 +55,17 @@ def main():
     return 1 if bad else 0
 
 
+# A model's family decides its state limits and its weights file.
+from tier_router.classify import family, weights_file
+
+
+def test_families():
+    assert family("laya") == "laya" and family("laya:421m-english-bf16") == "laya"
+    assert family("tev1:0.8b") == "tev1" and family("jev-latest") == "tev1"
+    assert weights_file("tev1").name == "weights.json"
+    print("ok  model families")
+
+
 if __name__ == "__main__":
+    test_families()
     sys.exit(main())

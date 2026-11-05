@@ -1,8 +1,9 @@
 # Prompts from the author's own sessions: private.
 eval/real.jsonl
 eval/real_raw.jsonl
-# tev1's cached answers; rebuilt by eval/collect.py.
+# Decision models' cached answers; rebuilt by eval/collect.py.
 eval/cache.json
+eval/cache-*.json
 __pycache__/
 *.pyc
 tests/.decisions.jsonl

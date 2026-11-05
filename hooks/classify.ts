@@ -1,9 +1,9 @@
-// Which Claude tier a request needs: tev1's answers to four questions and a
+// Which Claude tier a request needs: the decision model's answers to four questions and a
 // few keyword signals, folded into one difficulty score and cut by two fitted
 // thresholds. The same computation as tier_router/classify.py, which the
 // evaluation in eval/ runs; the data both use is generated into model.ts.
 
-import { NEGATIVE, POSITIVE, QUESTIONS, QUICK, SIGNALS, WEIGHTS } from './model.ts'
+import { NEGATIVE, POSITIVE, PROFILES, QUESTIONS, QUICK, SIGNALS, WEIGHTS, WEIGHTS_BY_FAMILY } from './model.ts'
 
 export type Tier = 'haiku' | 'sonnet' | 'opus'
 
@@ -23,18 +23,36 @@ export function trim(text: string, limit: number): string {
   return `${clean.slice(0, head)} … ${clean.slice(clean.length - (limit - head - 3))}`
 }
 
-/** What tev1 is shown: its context is about 2,000 tokens. */
-export function stateFor(prompt: string, context = ''): string {
+/** `laya:421m-english-bf16` -> `laya`; a model not in PROFILES (Jev's too) -> `tev1`. */
+export function family(model: string): string {
+  const name = (model.split(':', 1)[0] ?? '').split('/').pop() ?? ''
+  return name in PROFILES ? name : 'tev1'
+}
+
+/** How much state a decision model is shown, and the Ollama it needs. */
+export function profile(model: string): { min_ollama: string; context_chars: number; prompt_chars: number } {
+  return PROFILES[family(model)] ?? PROFILES.tev1!
+}
+
+/** The fitted weights for a decision model. */
+export function weightsFor(model: string): Record<string, number> {
+  return WEIGHTS_BY_FAMILY[family(model)] ?? WEIGHTS
+}
+
+/** What the decision model is shown: tev1's context is about 2,000 tokens,
+ * laya gives each question 512 for the question and the state together. */
+export function stateFor(prompt: string, context = '', model = 'tev1'): string {
+  const p = profile(model)
   const parts: string[] = []
-  if (context) parts.push(`End of the assistant's previous reply:\n${trim(context, 700)}`)
-  parts.push(`The user's new request:\n${trim(prompt, 1800)}`)
+  if (context) parts.push(`End of the assistant's previous reply:\n${trim(context, p.context_chars)}`)
+  parts.push(`The user's new request:\n${trim(prompt, p.prompt_chars)}`)
   return parts.join('\n\n')
 }
 
-/** The body of a POST to /v1/systemone: Ollama's (tev1) or TypeSafe's (Jev),
+/** The body of a POST to /v1/systemone: Ollama's (tev1, laya) or TypeSafe's (Jev),
  * which take the same questions. `keep_alive` is Ollama's alone. */
 export function request(model: string, prompt: string, context = '', local = true): string {
-  const body = { model, state: stateFor(prompt, context), questions: QUESTIONS }
+  const body = { model, state: stateFor(prompt, context, model), questions: QUESTIONS }
   return JSON.stringify(local ? { ...body, keep_alive: '30m' } : body)
 }
 

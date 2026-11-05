@@ -178,3 +178,53 @@ export async function cpuServer($: Engine): Promise<{ url: string } | { error: s
   }
   return { error: failed ? `could not start ollama (${failed})` : `the CPU Ollama on port ${CPU_PORT} did not answer` }
 }
+
+export type Local = { name: string; digest: string; cloud: boolean }
+
+/** The models the Ollama at `url` holds, from /api/tags. A cloud model (its
+ * `remote_model` set) runs on Ollama's servers and has no local build to update. */
+export async function localModels($: Engine, url: string): Promise<Local[]> {
+  try {
+    const res = await within($, 5000, $.http.fetch(`${url}/api/tags`))
+    if (!res.ok) return []
+    const models = JSON.parse(res.text).models ?? []
+    return models.map((m: { name?: string; digest?: string; remote_model?: string }) => ({
+      name: String(m.name ?? ''),
+      digest: String(m.digest ?? '').replace(/^sha256:/, ''),
+      cloud: Boolean(m.remote_model),
+    }))
+  } catch {
+    return []
+  }
+}
+
+/** The digest the public registry has for `name`'s tag, or undefined when it
+ * does not answer: offline, a private host, or a name it does not serve. */
+export async function registryDigest($: Engine, name: string): Promise<string | undefined> {
+  const [base = '', tag = 'latest'] = name.split(':')
+  const parts = base.split('/')
+  if (parts.length > 2 || (parts.length === 2 && parts[0]?.includes('.'))) return undefined
+  const ns = parts.length === 2 ? parts[0] : 'library'
+  const repo = parts[parts.length - 1]
+  try {
+    const res = await within($, 8000, $.http.fetch(`https://registry.ollama.com/v2/${ns}/${repo}/manifests/${tag}`, {
+      method: 'HEAD',
+      headers: { accept: 'application/vnd.docker.distribution.manifest.v2+json' },
+    }))
+    const digest = res.ok ? res.headers['ollama-content-digest'] : undefined
+    return digest ? digest.replace(/^sha256:/, '') : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Local models whose published build is not the one held: name and the new digest. */
+export async function staleModels($: Engine, url: string): Promise<{ name: string; to: string }[]> {
+  const stale: { name: string; to: string }[] = []
+  for (const m of await localModels($, url)) {
+    if (m.cloud || !m.digest) continue
+    const to = await registryDigest($, m.name)
+    if (to && to !== m.digest) stale.push({ name: m.name, to })
+  }
+  return stale
+}

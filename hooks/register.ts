@@ -17,7 +17,7 @@
 import type { EngineInterface as Engine, Register } from 'claude-code'
 
 import { edge, family, features, profile, request, score, tierFor, weightsFor, type Answers, type Tier } from './classify.ts'
-import { atLeast, CPU_PORT, cpuServer, hasModel, needsNewerOllama, processor, pull, upgrade, upgradePlan, version } from './ollama.ts'
+import { atLeast, CPU_PORT, cpuServer, hasModel, needsNewerOllama, processor, pull, staleModels, upgrade, upgradePlan, version } from './ollama.ts'
 
 /** This plugin's version, shown by `/router`. Kept equal to plugin.json by tests/test_version.py. */
 const VERSION = '0.3.0'
@@ -134,6 +134,23 @@ async function prepare($: Engine, cfg: Config, rt: Runtime, ask: 'always' | 'onc
     }
   }
 
+  // Local models with a newer build on the registry: one question for all of
+  // them, asked again only when a build changes.
+  const stale = await staleModels($, cfg.url)
+  const updated: string[] = []
+  if (stale.length) {
+    const names = stale.map(m => m.name).join(', ')
+    const key = `update ${stale.map(m => `${m.name}@${m.to.slice(0, 12)}`).join(' ')}`
+    if (await offer($, ask, `tier-router: newer builds exist for ${names}. Update them now?`, 'Update', key)) {
+      for (const m of stale) {
+        $.ui.status(`router: updating ${m.name}…`)
+        const failed = await pull($, cfg.url, m.name)
+        if (failed) return `Updating ${m.name} failed: ${failed}`
+        updated.push(m.name)
+      }
+    }
+  }
+
   if (cfg.device === 'cpu') {
     const cpu = await cpuServer($)
     if ('error' in cpu) return `The CPU-only Ollama did not start: ${cpu.error}. Decisions keep the session's model.`
@@ -156,7 +173,8 @@ async function prepare($: Engine, cfg: Config, rt: Runtime, ask: 'always' | 'onc
   const place = rt.where === 'split' ? 'partly on the GPU' : rt.where ? `on the ${rt.where.toUpperCase()}` : 'on an unknown processor'
   if (cfg.device === 'gpu' && rt.where !== 'gpu') return `${cfg.model} is ready, but ${place}: Ollama found no GPU it could use for it.`
   const cpuOnly = cfg.device === 'cpu' ? `, in the CPU-only Ollama at ${rt.url}` : ''
-  return `${cfg.model} is ready (Ollama ${(await version($, rt.url)) ?? have}), ${place}${cpuOnly}.`
+  const news = updated.length ? `Updated ${updated.join(', ')}. ` : ''
+  return `${news}${cfg.model} is ready (Ollama ${(await version($, rt.url)) ?? have}), ${place}${cpuOnly}.`
 }
 
 /** Runs setup and tells the user about anything left to do. */

@@ -69,7 +69,7 @@ When the chosen model needs a newer Ollama, the plugin asks before doing anythin
 its install script on Linux (only when it can run as root without a password prompt; otherwise it shows you the command),
 `brew upgrade ollama` on macOS when Ollama came from Homebrew, `winget upgrade Ollama.Ollama` on Windows. Anywhere else it
 points you to https://ollama.com/download. An Ollama on another machine (`ollamaUrl` not local) is never upgraded
-from here. A "Not now" is remembered: session start does not ask again for the same
+from here. Local models are checked the same way: when the registry has a newer build of any model Ollama holds (tev1, laya, others, but not cloud models), the plugin offers one update for all of them. A pull is only run on a yes. A "Not now" is remembered: session start does not ask again for the same
 model and Ollama version, and `/router setup` asks again whenever you want.
 
 ## Use

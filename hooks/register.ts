@@ -17,7 +17,7 @@
 import type { EngineInterface as Engine, Register } from 'claude-code'
 
 import { edge, family, features, profile, request, score, tierFor, weightsFor, type Answers, type Tier } from './classify.ts'
-import { atLeast, cpuServer, hasModel, needsNewerOllama, processor, pull, upgrade, upgradePlan, version } from './ollama.ts'
+import { atLeast, CPU_PORT, cpuServer, hasModel, needsNewerOllama, processor, pull, upgrade, upgradePlan, version } from './ollama.ts'
 
 /** This plugin's version, shown by `/router`. Kept equal to plugin.json by tests/test_version.py. */
 const VERSION = '0.3.0'
@@ -98,7 +98,12 @@ async function prepare($: Engine, cfg: Config, rt: Runtime, ask: 'always' | 'onc
   const have = await version($, cfg.url)
   if (!have) return `Ollama does not answer at ${cfg.url}: start it, then /router setup.`
 
-  if (!atLeast(have, need)) {
+  // A build from source says 0.0.0: no release to compare, so no upgrade offered.
+  if (have !== '0.0.0' && !atLeast(have, need)) {
+    // Only an Ollama on this machine can be upgraded from here.
+    if (!/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(cfg.url)) {
+      return `${cfg.model} needs Ollama ${need} or newer; the one at ${cfg.url} is ${have}. Upgrade it there, then /router setup.`
+    }
     const plan = await upgradePlan($)
     if ('manual' in plan) return `${cfg.model} needs Ollama ${need} or newer; this machine has ${have}. To upgrade, run: ${plan.manual}`
     const question = `tier-router: ${cfg.model} needs Ollama ${need} or newer, and this machine has ${have}. Upgrade Ollama now (${plan.label})?`
@@ -123,13 +128,19 @@ async function prepare($: Engine, cfg: Config, rt: Runtime, ask: 'always' | 'onc
     }
     $.ui.status(`router: downloading ${cfg.model}…`)
     const failed = await pull($, cfg.url, cfg.model)
-    if (failed) return `Downloading ${cfg.model} failed: ${failed}`
+    // A long download can outlast the request while Ollama finishes it.
+    if (failed && !(await hasModel($, cfg.url, cfg.model))) {
+      return `Downloading ${cfg.model} failed: ${failed}. Run it yourself: ollama pull ${cfg.model}`
+    }
   }
 
   if (cfg.device === 'cpu') {
     const cpu = await cpuServer($)
     if ('error' in cpu) return `The CPU-only Ollama did not start: ${cpu.error}. Decisions keep the session's model.`
     rt.url = cpu.url
+    if (!(await hasModel($, cpu.url, cfg.model))) {
+      return `The CPU-only Ollama at ${cpu.url} does not see ${cfg.model}: it reads a different model folder than the Ollama at ${cfg.url}. Set OLLAMA_MODELS for Claude Code to that folder, or pull the model as your own user.`
+    }
   } else {
     rt.url = cfg.url
   }
@@ -170,8 +181,11 @@ export const register: Register = (on, options) => {
     apiKey: String(options.jevApiKey || ''),
     device: options.device === 'cpu' || options.device === 'gpu' ? options.device : 'auto',
   }
-  // Where decisions are asked: the configured URL, or the CPU-only Ollama.
-  const rt: Runtime = { url: cfg.url, where: undefined, note: '', ready: false }
+  // Where decisions are asked: the configured URL, or the CPU-only Ollama. With
+  // the cpu device a turn before setup has started it fails fast and keeps the
+  // session's model, rather than load the model onto the GPU it was kept off.
+  const cpuUrl = `http://127.0.0.1:${CPU_PORT}`
+  const rt: Runtime = { url: backend === 'ollama' && cfg.device === 'cpu' ? cpuUrl : cfg.url, where: undefined, note: '', ready: false }
 
   const turns = new Map<string, Promise<Decision | string>>()
   const recent: (Decision | string)[] = []

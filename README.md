@@ -68,7 +68,8 @@ where the model is running.
 When the chosen model needs a newer Ollama, the plugin asks before doing anything, then runs what Ollama publishes:
 its install script on Linux (only when it can run as root without a password prompt; otherwise it shows you the command),
 `brew upgrade ollama` on macOS when Ollama came from Homebrew, `winget upgrade Ollama.Ollama` on Windows. Anywhere else it
-points you to https://ollama.com/download. A "Not now" is remembered: session start does not ask again for the same
+points you to https://ollama.com/download. An Ollama on another machine (`ollamaUrl` not local) is never upgraded
+from here. A "Not now" is remembered: session start does not ask again for the same
 model and Ollama version, and `/router setup` asks again whenever you want.
 
 ## Use

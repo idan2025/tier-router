@@ -110,6 +110,8 @@ test('the cpu device asks a CPU-only Ollama with every GPU hidden', { options: {
   expect(fake.spawned.length).toBe(1)
   expect(fake.spawned[0]).toMatchObject({ OLLAMA_HOST: '127.0.0.1:11435', CUDA_VISIBLE_DEVICES: '-1', OLLAMA_VULKAN: '0' })
   expect(fake.urls).toContain('http://127.0.0.1:11435/v1/systemone')
+  // The model is never loaded into the GPU Ollama it was kept off.
+  expect(fake.urls).not.toContain('http://localhost:11434/v1/systemone')
   expect(done.text).toContain('in the CPU-only Ollama at http://127.0.0.1:11435')
 })
 
@@ -119,4 +121,22 @@ test('the gpu device says when the model ended up on the CPU', { options: { tev1
   const done = await $.command.run(setup)
   expect(fake.spawned).toEqual([])
   expect(done.text).toContain('Ollama found no GPU')
+})
+
+test('a build from source (0.0.0) is never offered an upgrade', { options: { tev1Model: 'laya' } }, async ($, on) => {
+  const fake = fresh('0.0.0', ['laya'])
+  world(on, true, fake)
+  const done = await $.command.run(setup)
+  expect(fake.asked).toEqual([])
+  expect(fake.ran.filter(argv => argv[0] === 'sh')).toEqual([])
+  expect(done.text).toContain('laya is ready')
+})
+
+test('an Ollama on another machine is never upgraded from here', { options: { tev1Model: 'laya', ollamaUrl: 'http://gpu-box:11434' } }, async ($, on) => {
+  const fake = fresh('0.35.2', ['laya'])
+  world(on, true, fake)
+  const done = await $.command.run(setup)
+  expect(fake.asked).toEqual([])
+  expect(fake.ran).toEqual([])
+  expect(done.text).toContain('Upgrade it there')
 })

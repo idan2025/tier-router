@@ -3,7 +3,9 @@
 tev1 is a decision model (Ollama's /v1/systemone), not a chat model: it gets
 a short state and named questions, and returns a probability per option. Its
 context is about 2,000 tokens, so the state is the end of the previous
-assistant reply and the user's new message, both trimmed.
+assistant reply and the user's new message, both trimmed. laya, a smaller
+decision model on the same endpoint, can be asked instead (ROUTER_MODEL=laya);
+it gets a shorter state and its own fitted weights (PROFILES).
 
 Four questions go in one call. Their answers, and a handful of keyword
 signals, are folded into one difficulty score in [0, 1]; two thresholds turn
@@ -20,13 +22,34 @@ from pathlib import Path
 OLLAMA = os.environ.get("OLLAMA_HOST", "http://localhost:11434").rstrip("/")
 if not OLLAMA.startswith("http"):
     OLLAMA = "http://" + OLLAMA
-MODEL = os.environ.get("TEV1_MODEL", "tev1")
+MODEL = os.environ.get("ROUTER_MODEL") or os.environ.get("TEV1_MODEL", "tev1")
 # The same question set can go to a cloud Jev instead (ROUTER_BACKEND=jev):
 # TypeSafe's /v1/systemone takes the same body and answers in the same shape.
 BACKEND = os.environ.get("ROUTER_BACKEND", "ollama")
 JEV_URL = os.environ.get("TYPESAFE_URL", "https://api.typesafe.ai").rstrip("/")
 JEV_MODEL = os.environ.get("JEV_MODEL", "jev-latest")
 TIERS = ("haiku", "sonnet", "opus")
+
+# The decision models the router knows, by family (the name before any tag):
+# the first Ollama release that serves it, and how many characters of the
+# previous reply and of the new request its state may hold. laya gives each
+# question 512 tokens for its instructions, options and the state together,
+# so it is shown less than tev1, whose whole context is about 2,000 tokens.
+# A model not listed is treated as tev1.
+PROFILES = {
+    "tev1": {"min_ollama": "0.35.0", "context_chars": 700, "prompt_chars": 1800},
+    "laya": {"min_ollama": "0.40.0", "context_chars": 250, "prompt_chars": 1000},
+}
+
+
+def family(model):
+    """`laya:421m-english-bf16` -> `laya`; a model not in PROFILES -> `tev1`."""
+    name = model.partition(":")[0].rsplit("/", 1)[-1]
+    return name if name in PROFILES else "tev1"
+
+
+def profile(model):
+    return PROFILES[family(model)]
 
 QUESTIONS = {
     "tier": {
@@ -125,6 +148,13 @@ SIGNALS = {n: re.compile(rx.pattern + "|" + HEBREW[n], re.I) for n, rx in SIGNAL
 QUICK = re.compile(QUICK.pattern + "|" + HEBREW_QUICK, re.I)
 
 WEIGHTS_FILE = Path(__file__).with_name("weights.json")
+
+
+def weights_file(model=MODEL):
+    """tev1's (and Jev's) weights are weights.json; another family's are
+    weights-<family>.json, fitted on that model's own answers."""
+    f = family(model)
+    return WEIGHTS_FILE if f == "tev1" else WEIGHTS_FILE.with_name(f"weights-{f}.json")
 POSITIVE = ("tier", "deep", "effort", "hard", "symptom", "check", "scope", "act", "long")
 NEGATIVE = ("simple", "quick")
 DEFAULT_WEIGHTS = {
@@ -135,9 +165,11 @@ DEFAULT_WEIGHTS = {
 }
 
 
-def load_weights():
+def load_weights(model=None):
+    if model is None:
+        model = JEV_MODEL if BACKEND == "jev" else MODEL
     try:
-        return {**DEFAULT_WEIGHTS, **json.loads(WEIGHTS_FILE.read_text())}
+        return {**DEFAULT_WEIGHTS, **json.loads(weights_file(model).read_text())}
     except (OSError, ValueError):
         return dict(DEFAULT_WEIGHTS)
 
@@ -150,17 +182,19 @@ def _trim(text, limit):
     return text[:head] + " … " + text[-(limit - head - 3):]
 
 
-def state_for(prompt, context=""):
+def state_for(prompt, context="", model=None):
+    p = profile(model or MODEL)
     parts = []
     if context:
-        parts.append("End of the assistant's previous reply:\n" + _trim(context, 700))
-    parts.append("The user's new request:\n" + _trim(prompt, 1800))
+        parts.append("End of the assistant's previous reply:\n" + _trim(context, p["context_chars"]))
+    parts.append("The user's new request:\n" + _trim(prompt, p["prompt_chars"]))
     return "\n\n".join(parts)
 
 
 def ask_tev1(prompt, context="", timeout=30):
-    """The decision model's raw answers for one request (local tev1 or cloud Jev)."""
-    body = {"state": state_for(prompt, context), "questions": QUESTIONS}
+    """The decision model's raw answers for one request (local tev1 or laya, or cloud Jev)."""
+    body = {"state": state_for(prompt, context, JEV_MODEL if BACKEND == "jev" else MODEL),
+            "questions": QUESTIONS}
     headers = {"Content-Type": "application/json"}
     if BACKEND == "jev":
         key = os.environ.get("TYPESAFE_API_KEY", "")

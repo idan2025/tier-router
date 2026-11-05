@@ -1,13 +1,24 @@
-"""Ask tev1 about every eval prompt once and cache its raw answers.
+"""Ask the decision model about every eval prompt once and cache its raw answers.
 
 The cache is keyed by the exact state sent, so changing the questions or the
-trimming re-asks only what changed."""
-import hashlib, json, sys
+trimming re-asks only what changed. Each model has its own cache file: tev1's
+is cache.json, laya's cache-laya.json (another tag, cache-<tag>.json), Jev's
+cache-jev.json."""
+import hashlib, json, re, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from tier_router.classify import QUESTIONS, ask_tev1, state_for
+from tier_router.classify import BACKEND, MODEL, QUESTIONS, ask_tev1, family, state_for
 
 HERE = Path(__file__).resolve().parent
+
+
+def cache_path():
+    if BACKEND == "jev":
+        return HERE / "cache-jev.json"
+    if family(MODEL) == "tev1":
+        return HERE / "cache.json"
+    tag = re.sub(r"[^A-Za-z0-9.-]+", "_", MODEL.removesuffix(":latest"))
+    return HERE / f"cache-{tag}.json"
 
 
 def load_cases():
@@ -36,8 +47,8 @@ def key(c):
 
 
 def main():
-    cache_path = HERE / "cache.json"
-    cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
+    path = cache_path()
+    cache = json.loads(path.read_text()) if path.exists() else {}
     cases = load_cases() + load_blind()
     asked = 0
     for c in cases:
@@ -45,7 +56,7 @@ def main():
         if k not in cache:
             cache[k] = ask_tev1(c["prompt"], c.get("context", ""), timeout=120)
             asked += 1
-    cache_path.write_text(json.dumps(cache))
+    path.write_text(json.dumps(cache))
     print(f"{len(cases)} cases, {asked} asked, {len(cache)} cached")
 
 

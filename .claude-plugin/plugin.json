@@ -1,7 +1,7 @@
 {
   "name": "tier-router",
-  "version": "0.2.2",
-  "description": "Picks Haiku, Sonnet or Opus for each prompt with a decision model: tev1 locally in Ollama, or Jev in TypeSafe's cloud. No proxy, no Claude tokens spent on routing.",
+  "version": "0.3.0",
+  "description": "Picks Haiku, Sonnet or Opus for each prompt with a decision model: tev1 or laya locally in Ollama (on CPU or GPU), or Jev in TypeSafe's cloud. No proxy, no Claude tokens spent on routing.",
   "author": {
     "name": "idan2025"
   },
@@ -11,7 +11,7 @@
     "backend": {
       "type": "string",
       "title": "Decision backend",
-      "description": "ollama: local tev1. jev: TypeSafe's cloud Jev (needs an API key).",
+      "description": "ollama: a local decision model (tev1 or laya, see Decision model). jev: TypeSafe's cloud Jev (needs an API key).",
       "default": "ollama",
       "options": [
         "ollama",
@@ -21,14 +21,30 @@
     "ollamaUrl": {
       "type": "string",
       "title": "Ollama URL",
-      "description": "Where Ollama serves tev1.",
+      "description": "Where Ollama serves the decision model.",
       "default": "http://localhost:11434"
     },
     "tev1Model": {
       "type": "string",
       "title": "Decision model",
-      "description": "The Ollama decision model to ask (tev1 or tev1:0.8b).",
-      "default": "tev1"
+      "description": "The local decision model to ask. tev1: 4.4 GB, the best tested, English and Hebrew. tev1:0.8b: less memory. laya: English-only, 0.8 GB and fastest (needs Ollama 0.40); Hebrew prompts route much worse. The plugin offers to download it, and to upgrade Ollama when the model needs a newer one.",
+      "default": "tev1",
+      "options": [
+        "tev1",
+        "tev1:0.8b",
+        "laya"
+      ]
+    },
+    "device": {
+      "type": "string",
+      "title": "Run the decision model on",
+      "description": "auto: wherever your Ollama puts it (a GPU when it has one). cpu: a CPU-only Ollama the plugin starts on port 11435, leaving the GPU to your other work. gpu: your Ollama, and /router says when the model ended up on the CPU anyway.",
+      "default": "auto",
+      "options": [
+        "auto",
+        "cpu",
+        "gpu"
+      ]
     },
     "jevApiKey": {
       "type": "string",

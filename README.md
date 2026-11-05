@@ -1,15 +1,18 @@
 # tier-router
 
 A Claude Code plugin that picks **Haiku, Sonnet or Opus for each prompt you type**, using a small
-decision model: [tev1](https://ollama.com/library/tev1) running locally in Ollama, or [Jev](https://docs.typesafe.ai/models.md) in TypeSafe's cloud.
+decision model: [tev1](https://ollama.com/library/tev1) or [laya](https://ollama.com/library/laya) running locally in Ollama
+(on your CPU or GPU, your pick), or [Jev](https://docs.typesafe.ai/models.md) in TypeSafe's cloud.
 
-- **No Claude tokens spent on routing.** tev1 runs on your machine (Jev is an optional cloud call); Claude is called exactly as often as without the plugin.
+- **No Claude tokens spent on routing.** tev1 and laya run on your machine (Jev is an optional cloud call); Claude is called exactly as often as without the plugin.
 - **No proxy, no `ANTHROPIC_BASE_URL`.** It sets the model of each request from inside Claude Code.
 - **Built not to miss hard tasks.** In tuning, sending an Opus task lower counts as a worse mistake than sending an easy task to Opus.
 
 ## Install
 
-You need [Ollama](https://ollama.com) 0.35 or newer, running, with tev1 pulled:
+You need [Ollama](https://ollama.com) running: 0.35 or newer for tev1, 0.40 or newer for laya. At session start the
+plugin checks both: if the model is missing it offers to download it, and if Ollama is too old for the model it offers to
+upgrade Ollama (see [Upgrading Ollama](#upgrading-ollama)). To pull it yourself instead:
 
 ```sh
 ollama pull tev1
@@ -36,16 +39,49 @@ eval and proxy, set `ROUTER_BACKEND=jev` and `TYPESAFE_API_KEY`.
 `python3 -I eval/collect.py` and `eval/tune.py --blind` with `ROUTER_BACKEND=jev` before trusting its tiers
 (`eval/cache.json` holds tev1's answers, so move it aside first).
 
+## Choosing the decision model and where it runs
+
+Set these in `/plugin` (or under `pluginConfigs` in settings):
+
+| `tev1Model` | Size | Needs Ollama | Notes |
+| --- | --- | --- | --- |
+| `tev1` (default) | 4.4 GB | 0.35 | The best tested; English and Hebrew. |
+| `tev1:0.8b` | 0.8 GB | 0.35 | Less memory; uses tev1's weights. |
+| `laya` | 0.8 GB | 0.40 | **English-only.** Fastest (about 0.3 s a decision on a CPU here). Hebrew prompts route much worse (76% against tev1's 93%). |
+
+laya has its own fitted weights (`tier_router/weights-laya.json`) and is shown a shorter state, since it gives each
+question 512 tokens for the question and the prompt together. See [How well it works](#how-well-it-works) for its numbers.
+
+`device` decides which processor runs the model:
+
+- `auto` (default): wherever your Ollama puts it, a GPU when it has one.
+- `cpu`: the plugin starts a second, CPU-only Ollama on `127.0.0.1:11435`, with every GPU hidden from it
+  (`CUDA_VISIBLE_DEVICES=-1` and the like), reading the same model store, so the GPU stays free for your other work.
+  It lives as long as the Claude Code session that started it; another session reuses it while it runs.
+- `gpu`: your own Ollama, and `/router` says so when the model ended up on the CPU anyway (no GPU it could use).
+
+Ollama has no per-request device switch for decision models, which is why `cpu` is a server of its own. `/router` shows
+where the model is running.
+
+### Upgrading Ollama
+
+When the chosen model needs a newer Ollama, the plugin asks before doing anything, then runs what Ollama publishes:
+its install script on Linux (only when it can run as root without a password prompt; otherwise it shows you the command),
+`brew upgrade ollama` on macOS when Ollama came from Homebrew, `winget upgrade Ollama.Ollama` on Windows. Anywhere else it
+points you to https://ollama.com/download. An Ollama on another machine (`ollamaUrl` not local) is never upgraded
+from here. A "Not now" is remembered: session start does not ask again for the same
+model and Ollama version, and `/router setup` asks again whenever you want.
+
 ## Use
 
 Nothing to do: each prompt is routed before Claude sees it, and the status line shows `router → haiku`, `sonnet` or `opus`.
 
 - `/router` lists this session's recent decisions, with their scores.
 - `/router off` and `/router on` switch it for the session.
+- `/router setup` checks Ollama and the model again: offers an upgrade or a download, restarts the CPU-only Ollama.
 
 Settings (in `/plugin`, or under `pluginConfigs` in settings): `ollamaUrl` (default `http://localhost:11434`),
-`tev1Model` (`tev1`, or `tev1:0.8b` for less memory), and the model ids used for each tier
-(`haikuModel`, `sonnetModel`, `opusModel`).
+`tev1Model` and `device` (above), and the model ids used for each tier (`haikuModel`, `sonnetModel`, `opusModel`).
 
 ## How it decides
 
@@ -74,7 +110,7 @@ Two fitted thresholds turn the score into a tier.
 - A score within 0.03 of a threshold keeps the session's current tier. Switching model starts the prompt cache over, so the plugin doesn't switch for a near-tie.
 - Subagents keep the model they were given.
 
-If tev1 is unreachable or takes more than 8 s, the turn keeps your session's model.
+If the decision model is unreachable or takes more than 8 s, the turn keeps your session's model.
 
 ## How well it works
 
@@ -110,15 +146,30 @@ The Hebrew rules are a plain translation of the English word lists, written befo
 weights are unchanged; English results are identical. Still only 45 blind prompts, translated by one person: a few points
 of that gain may be noise. `python3 -I eval/lang.py` reruns the comparison.
 
+**laya.** Fitted on the 109 published prompts only (the 32 private ones were not available for it), with the same
+cost rules, then scored once on the blind set:
+
+| | Accuracy | Opus tasks missed | Easy tasks sent to Opus |
+| --- | --- | --- | --- |
+| laya's own choice, blind set | 78% | 0 of 15 | 5 of 30 |
+| **tier-router with laya, blind set** | **91%** | 1 of 15 | 1 of 30 |
+| tier-router with laya, 5-fold cross-validation on the 109 | 89% | 2 of 35 | 5 of 74 |
+| tier-router with laya, Hebrew blind set (for comparison) | 76% | 8 of 15 | 1 of 30 |
+
+laya is **English-only**: for Hebrew prompts use tev1.
+
 To retune on your own prompts, add lines to `eval/synthetic.tsv` (`label<TAB>prompt`) and run:
 
 ```sh
-python3 -I eval/collect.py      # asks tev1 about new prompts (cached)
+python3 -I eval/collect.py      # asks the decision model about new prompts (cached)
 python3 -I eval/tune.py --blind --write
 ```
 
 `--write` updates `tier_router/weights.json` and regenerates `hooks/model.ts`, which the plugin reads.
-The plugin's TypeScript and the evaluation's Python compute identical scores (checked on all 186 prompts).
+Prefix both with `ROUTER_MODEL=laya` to tune laya instead: its answers are cached in `eval/cache-laya.json` and its
+weights go to `tier_router/weights-laya.json`.
+The plugin's TypeScript and the evaluation's Python compute identical scores (checked on all 186 prompts with tev1,
+and on the 154 published ones with laya).
 
 ## Without the plugin: the proxy
 
@@ -130,7 +181,11 @@ bin/tier-router-proxy claude      # starts the proxy and runs Claude Code throug
 bin/tier-router-proxy log         # recent decisions
 ```
 
-`tests/test_proxy.py` checks it against a fake API.
+`tests/test_proxy.py` checks it against a fake API. The proxy and the eval take `ROUTER_MODEL` (`tev1`, `laya`)
+and `OLLAMA_HOST`; for the CPU, point `OLLAMA_HOST` at an Ollama started with `CUDA_VISIBLE_DEVICES=-1`.
+
+`tests/setup.test.ts` checks the plugin's setup (upgrade, download, CPU and GPU devices) against a fake Ollama:
+`claude plugin test .`.
 
 ## License
 

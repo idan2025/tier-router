@@ -7,7 +7,7 @@
 import type { On } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
-type Fake = { version: string; models: string[]; asked: string[]; pulled: string[]; ran: string[][]; spawned: Record<string, string>[]; urls: string[]; local: Record<string, string>; registry: Record<string, string> }
+type Fake = { version: string; models: string[]; asked: string[]; pulled: string[]; ran: string[][]; spawned: Record<string, string>[]; urls: string[]; local: Record<string, string>; registry: Record<string, string>; pullError?: string }
 
 /** A fake Ollama on both ports, the host's commands, the user's answers. */
 function world(on: On, yes: boolean, fake: Fake, sudo = true) {
@@ -56,6 +56,7 @@ function world(on: On, yes: boolean, fake: Fake, sudo = true) {
     }
     if (path === '/api/pull') {
       const { model } = JSON.parse(e.init?.body ?? '{}')
+      if (fake.pullError) return { value: { status: 500, ok: false, headers: {}, text: JSON.stringify({ error: fake.pullError }) } }
       fake.pulled.push(model)
       fake.models.push(model)
       return ok({ status: 'success' })
@@ -208,4 +209,28 @@ test('tev1 gets the same update offer as laya', { options: { tev1Model: 'tev1' }
   expect(fake.asked.some(q => q.includes('newer builds exist for tev1:latest'))).toBe(true)
   expect(fake.pulled).toEqual(['tev1:latest'])
   expect(done.text).toContain('Updated tev1:latest.')
+})
+
+test('a failed update leaves the decision model ready and names the model', { options: { tev1Model: 'laya' } }, async ($, on) => {
+  const fake = fresh('0.40.5', ['laya', 'other'])
+  fake.registry['other:latest'] = 'f'.repeat(64)
+  fake.pullError = 'disk full'
+  world(on, true, fake)
+  const done = await $.command.run(setup)
+  expect(done.text).toContain('laya is ready')
+  expect(done.text).toContain('Updating failed for other:latest (disk full)')
+})
+
+test('two declined offers are both remembered', { options: { tev1Model: 'laya' } }, async ($, on) => {
+  const fake = fresh('0.40.5', ['laya', 'other'])
+  fake.registry['other:latest'] = 'f'.repeat(64)
+  world(on, false, fake)
+  await $.command.run(setup)
+  fake.registry['laya:latest'] = 'b'.repeat(64)
+  await $.command.run(setup)
+  fake.registry = { 'laya:latest': 'a'.repeat(64), 'other:latest': 'f'.repeat(64) }
+  await $.session.start(start)
+  await new Promise(resolve => setTimeout(resolve, 100))
+  // other's build was declined first, then a second offer: neither comes back at session start.
+  expect(fake.asked.filter(q => q.includes('newer builds')).length).toBe(2)
 })

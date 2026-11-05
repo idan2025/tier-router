@@ -220,11 +220,11 @@ export async function registryDigest($: Engine, name: string): Promise<string | 
 
 /** Local models whose published build is not the one held: name and the new digest. */
 export async function staleModels($: Engine, url: string): Promise<{ name: string; to: string }[]> {
-  const stale: { name: string; to: string }[] = []
-  for (const m of await localModels($, url)) {
-    if (m.cloud || !m.digest) continue
-    const to = await registryDigest($, m.name)
-    if (to && to !== m.digest) stale.push({ name: m.name, to })
-  }
-  return stale
+  const held = (await localModels($, url)).filter(m => !m.cloud && m.digest)
+  // Asked together, so a registry that does not answer costs one timeout, not one per model.
+  const published = await Promise.all(held.map(m => registryDigest($, m.name)))
+  return held.flatMap((m, i) => {
+    const to = published[i]
+    return to && to !== m.digest ? [{ name: m.name, to }] : []
+  })
 }

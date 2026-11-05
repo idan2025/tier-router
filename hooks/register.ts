@@ -20,7 +20,7 @@ import { edge, family, features, profile, request, score, tierFor, weightsFor, t
 import { atLeast, CPU_PORT, cpuServer, hasModel, needsNewerOllama, processor, pull, staleModels, upgrade, upgradePlan, version } from './ollama.ts'
 
 /** This plugin's version, shown by `/router`. Kept equal to plugin.json by tests/test_version.py. */
-const VERSION = '0.3.0'
+const VERSION = '0.3.1'
 
 const HYSTERESIS = 0.03
 const TIMEOUT_MS = 8000
@@ -77,11 +77,14 @@ async function decide($: Engine, cfg: Config, url: string, prompt: string, conte
 type Runtime = { url: string; where: Where; note: string; ready: boolean }
 
 /** Asks the user yes or not now. At session start (`once`) an offer the user
- * turned down is not made again for the same model and release. */
+ * turned down is not made again for the same model and release. The last 20
+ * declined offers are kept; an older version stored one, as a string. */
 async function offer($: Engine, ask: 'always' | 'once', question: string, yes: string, key: string): Promise<boolean> {
-  if (ask === 'once' && (await $.store.get('declined')) === key) return false
+  const stored = await $.store.get('declined')
+  const declined = Array.isArray(stored) ? stored.map(String) : typeof stored === 'string' ? [stored] : []
+  if (ask === 'once' && declined.includes(key)) return false
   const answer = await $.ui.ask(question, [yes, 'Not now']).catch(() => 'Not now')
-  if (answer !== yes) await $.store.set('declined', key)
+  if (answer !== yes && !declined.includes(key)) await $.store.set('declined', [...declined, key].slice(-20))
   return answer === yes
 }
 
@@ -134,23 +137,6 @@ async function prepare($: Engine, cfg: Config, rt: Runtime, ask: 'always' | 'onc
     }
   }
 
-  // Local models with a newer build on the registry: one question for all of
-  // them, asked again only when a build changes.
-  const stale = await staleModels($, cfg.url)
-  const updated: string[] = []
-  if (stale.length) {
-    const names = stale.map(m => m.name).join(', ')
-    const key = `update ${stale.map(m => `${m.name}@${m.to.slice(0, 12)}`).join(' ')}`
-    if (await offer($, ask, `tier-router: newer builds exist for ${names}. Update them now?`, 'Update', key)) {
-      for (const m of stale) {
-        $.ui.status(`router: updating ${m.name}…`)
-        const failed = await pull($, cfg.url, m.name)
-        if (failed) return `Updating ${m.name} failed: ${failed}`
-        updated.push(m.name)
-      }
-    }
-  }
-
   if (cfg.device === 'cpu') {
     const cpu = await cpuServer($)
     if ('error' in cpu) return `The CPU-only Ollama did not start: ${cpu.error}. Decisions keep the session's model.`
@@ -173,15 +159,41 @@ async function prepare($: Engine, cfg: Config, rt: Runtime, ask: 'always' | 'onc
   const place = rt.where === 'split' ? 'partly on the GPU' : rt.where ? `on the ${rt.where.toUpperCase()}` : 'on an unknown processor'
   if (cfg.device === 'gpu' && rt.where !== 'gpu') return `${cfg.model} is ready, but ${place}: Ollama found no GPU it could use for it.`
   const cpuOnly = cfg.device === 'cpu' ? `, in the CPU-only Ollama at ${rt.url}` : ''
-  const news = updated.length ? `Updated ${updated.join(', ')}. ` : ''
-  return `${news}${cfg.model} is ready (Ollama ${(await version($, rt.url)) ?? have}), ${place}${cpuOnly}.`
+  return `${cfg.model} is ready (Ollama ${(await version($, rt.url)) ?? have}), ${place}${cpuOnly}.`
+}
+
+/** Offers updates for local models with a newer build on the registry: one
+ * question for all of them, asked again only when a build changes. Runs after
+ * the decision model is ready, so neither a slow registry nor a failed pull
+ * holds routing up. Resolves a line for the note, or nothing. */
+async function offerUpdates($: Engine, cfg: Config, ask: 'always' | 'once'): Promise<string> {
+  if (cfg.backend !== 'ollama') return ''
+  const stale = await staleModels($, cfg.url)
+  if (!stale.length) return ''
+  const names = stale.map(m => m.name).join(', ')
+  const key = `update ${stale.map(m => `${m.name}@${m.to.slice(0, 12)}`).join(' ')}`
+  if (!(await offer($, ask, `tier-router: newer builds exist for ${names}. Update them now?`, 'Update', key))) {
+    return `Newer builds exist for ${names}; /router setup offers the update again.`
+  }
+  const done: string[] = []
+  const failed: string[] = []
+  for (const m of stale) {
+    $.ui.status(`router: updating ${m.name}…`)
+    const why = await pull($, cfg.url, m.name)
+    if (why) failed.push(`${m.name} (${why})`)
+    else done.push(m.name)
+  }
+  $.ui.status(undefined)
+  return [done.length ? `Updated ${done.join(', ')}.` : '', failed.length ? `Updating failed for ${failed.join(', ')}.` : ''].filter(Boolean).join(' ')
 }
 
 /** Runs setup and tells the user about anything left to do. */
 async function setUp($: Engine, cfg: Config, rt: Runtime, ask: 'always' | 'once'): Promise<string> {
-  rt.note = await prepare($, cfg, rt, ask).catch(err => `setup failed: ${err instanceof Error ? err.message : String(err)}`)
+  const note = await prepare($, cfg, rt, ask).catch(err => `setup failed: ${err instanceof Error ? err.message : String(err)}`)
   $.ui.status(rt.ready ? undefined : 'router: see /router')
-  if (!rt.ready || (cfg.device === 'gpu' && rt.where !== 'gpu')) $.ui.toast(`tier-router: ${rt.note}`)
+  if (!rt.ready || (cfg.device === 'gpu' && rt.where !== 'gpu')) $.ui.toast(`tier-router: ${note}`)
+  const updates = rt.ready ? await offerUpdates($, cfg, ask).catch(() => '') : ''
+  rt.note = updates ? `${note} ${updates}` : note
   return rt.note
 }
 

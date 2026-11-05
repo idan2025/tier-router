@@ -1,6 +1,6 @@
 {
   "name": "tier-router",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Picks Haiku, Sonnet or Opus for each prompt with a decision model: tev1 or laya locally in Ollama (on CPU or GPU), or Jev in TypeSafe's cloud. No proxy, no Claude tokens spent on routing.",
   "author": {
     "name": "idan2025"

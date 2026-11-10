@@ -163,17 +163,19 @@ alone.
 
 `python3 -I eval/lang.py` reruns English against Hebrew.
 
-**laya.** *The numbers below are from the three-tier version (0.3.x). laya's weights have not been refitted for Fable yet:
-rerun `ROUTER_MODEL=laya python3 -I eval/collect.py` and `eval/tune.py --blind --write` before relying on laya's Fable tier.*
-Fitted on the 109 published prompts only (the 32 private ones were not available for it), with the same
-cost rules, then scored once on the blind set:
+**laya.** Refitted for the four tiers on its own answers to the 189 English training prompts (never the Hebrew ones), then
+scored on the four English blind sets (160 prompts):
 
-| | Accuracy | Opus tasks missed | Easy tasks sent to Opus |
+| | Accuracy | Hard tasks sent below Opus | Fable tasks missed |
 | --- | --- | --- | --- |
-| laya's own choice, blind set | 78% | 0 of 15 | 5 of 30 |
-| **tier-router with laya, blind set** | **91%** | 1 of 15 | 1 of 30 |
-| tier-router with laya, 5-fold cross-validation on the 109 | 89% | 2 of 35 | 5 of 74 |
-| tier-router with laya, Hebrew blind set (for comparison) | 76% | 8 of 15 | 1 of 30 |
+| laya's own choice | 48% | 0 of 78 | 16 of 39 |
+| **tier-router with laya** | **82%** (132/160) | 3 of 78 | 4 of 39 |
+| tier-router with laya, 5-fold cross-validation on the 189 | 73% | 5 of 95 | 10 of 40 |
+| by set: `blind` / `blind2` / `blind3` / `blind4` | 85% / 78% / 89% / 75% | | |
+
+laya is far less accurate than Jev (96% on the same sets). Its own choice sends nearly every easy task to a high tier, and
+the router's rules and weights correct much of that, but it also sends 7 of 82 easy tasks high. Use tev1 or Jev when the
+tier matters; laya is for when you want a 0.8 GB model that answers in about 0.3 s.
 
 laya is **English-only**: for Hebrew prompts use tev1.
 

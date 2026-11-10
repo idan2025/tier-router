@@ -9,6 +9,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from tier_router.classify import BACKEND, MODEL, QUESTIONS, ask_tev1, family, state_for
 
+# laya is English-only: it is neither asked the Hebrew sets nor fitted on them.
+ENGLISH_ONLY = BACKEND != "jev" and family(MODEL) == "laya"
+
+
+def files(names):
+    return [n for n in names if not (ENGLISH_ONLY and n.startswith("hebrew_"))]
+
 HERE = Path(__file__).resolve().parent
 
 
@@ -26,7 +33,7 @@ def load_cases():
     # published; the evaluation runs on the rest without it.
     real = HERE / "real.jsonl"
     cases = [json.loads(l) for l in open(real)] if real.exists() else []
-    for name in ("synthetic.tsv", "hebrew_synthetic.tsv"):
+    for name in files(("synthetic.tsv", "hebrew_synthetic.tsv")):
         for line in open(HERE / name, encoding="utf-8"):
             label, prompt = line.rstrip("\n").split("\t", 1)
             cases.append({"prompt": prompt, "context": "", "label": label, "source": name.removesuffix(".tsv")})
@@ -36,7 +43,7 @@ def load_cases():
 def load_blind():
     """Written after the first round of tuning and never fitted on."""
     cases = []
-    for name in ("blind.tsv", "hebrew_blind.tsv", "blind2.tsv", "hebrew_blind2.tsv", "blind3.tsv", "hebrew_blind3.tsv", "blind4.tsv", "hebrew_blind4.tsv"):
+    for name in files(("blind.tsv", "hebrew_blind.tsv", "blind2.tsv", "hebrew_blind2.tsv", "blind3.tsv", "hebrew_blind3.tsv", "blind4.tsv", "hebrew_blind4.tsv")):
         for line in open(HERE / name, encoding="utf-8"):
             label, prompt = line.rstrip("\n").split("\t", 1)
             cases.append({"prompt": prompt, "context": "", "label": label, "source": name.removesuffix(".tsv")})

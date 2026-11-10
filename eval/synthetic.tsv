@@ -137,3 +137,53 @@ fable	a data corruption happens once a week somewhere between the kernel, the hy
 fable	own the whole release autonomously: fix everything, test on all three operating systems, write the notes and ship it
 fable	design and build a new distributed file system with erasure coding and self healing
 fable	go fully autonomous: plan, build, test and deliver every feature in this 40-page spec
+haiku	is this sql valid: select * from users where id = 5; yes or no and why
+haiku	fix the indentation in the makefile, it mixes tabs and spaces
+haiku	does python's sorted() modify the list in place?
+haiku	change the default timeout in settings.py from 30 to 60
+haiku	what's the difference between == and is in python, briefly
+haiku	add a trailing newline to the end of notes.txt
+haiku	which flag makes curl follow redirects?
+haiku	is port 5432 the default for postgres, and what's 3306?
+haiku	delete the unused import on line 12 of app.py
+haiku	show me the last 5 commits
+sonnet	upgrade the lodash dependency and fix the one test that fails after it
+sonnet	add input validation to the signup form: email format and password length, with error messages
+sonnet	write a script that renames all the photos in a folder by their exif date
+sonnet	the login endpoint returns 500 when the password is empty, here is the stack trace, fix it
+sonnet	add a --dry-run flag to the cleanup command and print what would be deleted
+sonnet	convert this callback-based file reader to async/await and update its three callers
+sonnet	add pagination to the orders list api, 20 per page, with tests
+sonnet	write unit tests for the date parsing helpers, including the leap year cases
+sonnet	add a dark mode toggle to the settings page and remember it in local storage
+sonnet	update the dockerfile to a multi-stage build and make sure the image still starts
+opus	check whether our password reset tokens can be guessed or reused, and fix what you find
+opus	users report that uploads sometimes silently lose the last chunk, we can't reproduce it, find out why
+opus	figure out why the websocket reconnect storm happens after every deploy and stop it for good
+opus	review the new payments module end to end for race conditions and double charges
+opus	our nightly job takes twice as long every week, investigate where the time goes and fix the cause
+opus	is the sandbox around the plugin runner really airtight? try to break out of it and fix the holes
+opus	design how permissions should work across teams, projects and shared resources, then implement it
+opus	the replica sometimes serves stale data for minutes, nothing in the logs, find the cause
+opus	find out why memory grows on the worker pool only under a certain traffic pattern and fix it properly
+opus	the distributed lock sometimes lets two workers in at once, prove where the hole is and close it
+fable	build a complete accounting system from scratch: ledger, invoicing, tax rules, reports and an api, with tests
+fable	rewrite our entire monolith as services over the next days, migrating data and traffic without downtime
+fable	work through the whole backlog on your own: triage, fix, test and release every item, and report at the end
+fable	design and prove correct a new replication protocol for our database, then build it and run chaos tests on it
+fable	the last two attempts by another model to fix this cluster-wide data loss failed; take it over and solve it for real
+fable	create a new game engine for a 2d platformer, including a level editor, physics and an asset pipeline
+fable	audit and harden our entire infrastructure, every repo and every cloud account, and fix everything you find
+fable	research and implement a novel scheduling algorithm for our job system, with a written proof and benchmarks
+fable	port the whole desktop app to mobile, rewriting each module and keeping the data compatible
+fable	own the full launch: finish the product, test it on all platforms, fix what breaks and ship it
+opus	check whether our rate limiter actually stops a determined abuser, and fix the gaps
+opus	does the failover really work when the primary loses power mid-write? test it for real and fix what breaks
+opus	check that tenants can't read each other's data through any path in the api
+opus	verify the encryption at rest is actually applied to every table and every backup
+opus	why does the ci pass on my branch but fail on main even though the code is identical?
+opus	the exporter only breaks for large accounts and only after midnight, find out why
+opus	make sure the migration really is safe to run on production with live traffic, and fix anything risky in it
+opus	is the audit log actually complete? check every code path that changes data
+opus	why do requests to the checkout service hang even though cpu and memory look fine?
+opus	confirm our disaster recovery plan actually works end to end, run it and repair what fails

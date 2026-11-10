@@ -102,11 +102,14 @@ SIGNALS = {
         r"\b(why|randomly|sometimes|intermittent\w*|stall\w*|hang\w*|desync\w*|spikes?|"
         r"(is|are|shows?|goes|went) down|broken|(does ?n[o']?t|never|not) "
         r"(work|go|reach|route|match|update|see|show|start)\w*|disagree|out of order|got worse|"
-        r"can'?t reproduce|nothing in the logs|nothing obvious)\b", re.I),
+        r"can'?t reproduce|nothing in the logs|nothing obvious|even though|"
+        r"only (when|happens|after|on (some|certain|one))|but (only|just) (when|on|for|after))\b", re.I),
     # Is it safe, secure, isolated, correct: an open-ended check.
     "check": re.compile(
         r"\b(safe|secure|security|isolat\w*|contained|vulnerab\w*|replay|check (if|whether|that|why|out)|"
-        r"verify|is (it|this|our) (correct|right|ok))\b", re.I),
+        r"verify|is (it|this|our) (correct|right|ok)|"
+        r"(check|test|confirm|make sure|see) (if|whether|that) .{0,60}\b(actually|really)\b|"
+        r"\b(actually|really) (works?|isolat\w*|holds?|survives?|safe|secure|recovers?|restores?)\b)", re.I),
     # Everything at once.
     "scope": re.compile(
         r"\b(everything|whole|entire|all of (it|them)|fix all|before (the|we) (release|cut|ship)|"
@@ -119,7 +122,10 @@ SIGNALS = {
         r"all \d+ (services|repos|packages|modules)|autonomous\w*|overnight|multi-(week|day)|for (a|the whole) (day|week)|"
         r"formal\w* (proof|verif\w*|model\w*)|prove (it|that)? ?.{0,30}(secure|correct|safe)|novel|state of the art|research\w*|"
         r"nobody (could|has|on the team)|(opus|the previous model|another model) (already )?(failed|couldn'?t|could not)|"
-        r"full ownership|take (it )?over|hardest)", re.I),
+        r"full ownership|take (full )?ownership|take (it )?over|hardest|"
+        r"(for|over|through) (the )?(rest of the|next|coming|following) (few |two |three |several )?(days|weeks|months|quarter|sprint)|"
+        r"after (two|three|four|five|\d+) (post-?mortems|attempts|engineers)|(until|keep going until) (it|this) (ships|is done|launches)|"
+        r"run the (whole|entire|full) \w+( \w+)? (program|rewrite|migration|launch|effort))", re.I),
     # More than one action in one instruction: work, not a one-liner.
     "act": re.compile(
         r"\b(and|then) (test|verify|release|deploy|implement|build|fix|run|check|update)\b", re.I),
@@ -147,10 +153,11 @@ HEBREW = {
         r"לא מסונכרן|נפל|נופל|לא זמין|שבור|נשבר|"
         r"לא (?:עובד|עובדת|עולה|מגיע|מגיעים|מנתב|תואמ|מתעדכן|רואה|רואים|מציג|מתחיל|מצליח)|אף פעם|"
         r"לא מסכימים|לא תואמ|לא לפי הסדר|שלא לפי הסדר|הורע|החמיר|לא מצליח[א-ת]* לשחזר|"
-        r"אי אפשר לשחזר|אין כלום בלוגים|שום דבר בולט|שום דבר ברור"),
+        r"אי אפשר לשחזר|אין כלום בלוגים|שום דבר בולט|שום דבר ברור|למרות ש|"
+        r"רק (?:כש|כאשר|אחרי|בחלק)"),
     "check": (
         r"בטוח|מאובטח|אבטחה|בידוד|מבודד|פגיעו|replay|תבדוק (?:אם|האם|ש|למה)|תוודא|לוודא|תאמת|"
-        r"האם (?:זה|הוא|היא) (?:נכון|תקין)"),
+        r"האם (?:זה|הוא|היא) (?:נכון|תקין)|באמת (?:עובד|עובדת|עובדים|מבודד|מבודדת|בטוח|בטוחה|מחזיק|שורד)"),
     "scope": (
         r"הכל|כל ה(?:מערכת|קוד|בסיס|פרויקט)|כולו|כל מה ש|לפני השחרור|לפני שאנחנו משחררים|על פני \d+"),
     "act": r"(?:ו|ואז |אחר כך )(?:תבדוק|תריץ|תבנה|תתקן|תממש|תעדכן|תפרוס|תוודא)",
@@ -158,7 +165,9 @@ HEBREW = {
         r"מאפס|מקצה לקצה|את כל ה(?:מערכת|פלטפורמה|מוצר|פרויקט|משחק|קוד)|כל המערכת|כל הפלטפורמה|"
         r"כל (?:ה)?(?:ריפו|שירות|חבילה|באג|ממצא|מודול)[א-ת]*|באופן אוטונומי|אוטונומי|במשך הלילה|כל הלילה|"
         r"(?:כמה|מספר) (?:שבועות|ימים)|הוכחה פורמלית|אימות פורמלי|תוכיח ש|חדשני|מחקר|תחקור את המצב|"
-        r"אף אחד (?:לא הצליח|בצוות)|(?:opus|המודל הקודם) (?:כבר )?(?:נכשל|לא הצליח)|אחריות מלאה|תיקח את זה|הכי קשה"),
+        r"אף אחד (?:לא הצליח|בצוות)|(?:opus|המודל הקודם) (?:כבר )?(?:נכשל|לא הצליח)|אחריות מלאה|תיקח (?:את זה|בעלות|אחריות)|הכי קשה|"
+        r"(?:במשך|לאורך|עד סוף) ה?(?:שבוע|שבועיים|ימים|חודש|חודשים|רבעון)(?: הקרוב(?:ים)?)?|(?:בשבועיים|בימים|בחודשים) הקרוב(?:ים)?|"
+        r"אחרי (?:שניים|שלושה|ארבעה|\d+) (?:post-?mortems|ניסיונות|מהנדסים)|תמשיך עד ש"),
 }
 HEBREW_QUICK = (
     r"^\s*(?:(?:כן|בסדר|אוקיי)[,\s]*)?(?:בבקשה\s+)?(?:רק\s+)?"

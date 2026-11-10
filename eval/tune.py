@@ -174,6 +174,9 @@ def main():
         print()
         report("BLIND, model's choice only", blind, lambda r: r["a"]["tier"]["choice"])
         report("BLIND, fitted router", blind, pick_with(w_all))
+        for src in sorted({r["source"] for r in blind}):
+            part = [r for r in blind if r["source"] == src]
+            report(f"  {src}", part, pick_with(w_all))
         for r in blind:
             got = pick_with(w_all)(r)
             if got != r["label"]:

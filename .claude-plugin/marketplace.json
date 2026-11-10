@@ -1,6 +1,6 @@
 {
   "name": "tier-router",
-  "description": "tier-router: picks Haiku, Sonnet or Opus for each Claude Code prompt with a decision model (tev1 or laya in Ollama, or Jev).",
+  "description": "tier-router: picks Haiku, Sonnet, Opus or Fable for each Claude Code prompt with a decision model (tev1 or laya in Ollama, or Jev).",
   "owner": {
     "name": "idan2025"
   },

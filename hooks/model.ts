@@ -9,7 +9,8 @@ export const QUESTIONS = {
     "criteria": {
       "haiku": "A quick answer from general knowledge, a status question, or one or two obvious commands or a tiny edit.",
       "sonnet": "A normal, well-defined coding task: build a feature, write a script or tests, fix a bug whose error is known.",
-      "opus": "Hard work: find an unknown root cause, design or architect something, review a lot of code, or change a large system carefully."
+      "opus": "Hard work: find an unknown root cause, design or architect something, review a lot of code, or change a large system carefully.",
+      "fable": "The hardest, longest work: build or rebuild a whole system or product end to end, a novel design that needs research or proofs, a long autonomous job across many parts, or a problem a strong model already failed at."
     }
   },
   "simple": {
@@ -20,6 +21,10 @@ export const QUESTIONS = {
     "type": "noul",
     "instructions": "Does the user's new request need investigating an unknown cause, designing something, reviewing a lot of code, or carefully changing many parts of a system?"
   },
+  "frontier": {
+    "type": "noul",
+    "instructions": "Is the user's new request among the hardest and longest work there is: a whole system or product built or rebuilt end to end, a novel design that needs research or proofs, a long autonomous job across many parts, or a problem a strong model already failed at?"
+  },
   "effort": {
     "type": "score",
     "instructions": "How much work does the user's new request take?",
@@ -28,7 +33,8 @@ export const QUESTIONS = {
       "A small, clear change.",
       "A normal feature, script, or a bug with a clear error.",
       "A multi-step investigation or a large change.",
-      "A hard open-ended problem: unknown root cause, architecture, security, or a big review."
+      "A hard open-ended problem: unknown root cause, architecture, security, or a big review.",
+      "Extreme: a whole system end to end, novel research or proofs, a long autonomous job, or a problem others already failed at."
     ]
   }
 } as const
@@ -38,12 +44,17 @@ export const SIGNALS: Record<string, RegExp> = {
   symptom: new RegExp("\\b(why|randomly|sometimes|intermittent\\w*|stall\\w*|hang\\w*|desync\\w*|spikes?|(is|are|shows?|goes|went) down|broken|(does ?n[o']?t|never|not) (work|go|reach|route|match|update|see|show|start)\\w*|disagree|out of order|got worse|can'?t reproduce|nothing in the logs|nothing obvious)\\b|\u05dc\u05de\u05d4|\u05d1\u05d0\u05e7\u05e8\u05d0\u05d9|\u05d0\u05e7\u05e8\u05d0\u05d9|\u05dc\u05e4\u05e2\u05de\u05d9\u05dd|\u05dc\u05e1\u05d9\u05e8\u05d5\u05d2\u05d9\u05df|\u05e0\u05ea\u05e7\u05e2|\u05e0\u05ea\u05e7\u05e2\u05ea|\u05ea\u05e7\u05d5\u05e2|\u05e7\u05d5\u05e4\u05d0|\u05e7\u05d5\u05e4\u05e5|\u05e7\u05e4\u05d9\u05e6|\u05d9\u05d5\u05e6\u05d0 \u05de\u05e1\u05e0\u05db\u05e8\u05d5\u05df|\u05dc\u05d0 \u05de\u05e1\u05d5\u05e0\u05db\u05e8\u05df|\u05e0\u05e4\u05dc|\u05e0\u05d5\u05e4\u05dc|\u05dc\u05d0 \u05d6\u05de\u05d9\u05df|\u05e9\u05d1\u05d5\u05e8|\u05e0\u05e9\u05d1\u05e8|\u05dc\u05d0 (?:\u05e2\u05d5\u05d1\u05d3|\u05e2\u05d5\u05d1\u05d3\u05ea|\u05e2\u05d5\u05dc\u05d4|\u05de\u05d2\u05d9\u05e2|\u05de\u05d2\u05d9\u05e2\u05d9\u05dd|\u05de\u05e0\u05ea\u05d1|\u05ea\u05d5\u05d0\u05de|\u05de\u05ea\u05e2\u05d3\u05db\u05df|\u05e8\u05d5\u05d0\u05d4|\u05e8\u05d5\u05d0\u05d9\u05dd|\u05de\u05e6\u05d9\u05d2|\u05de\u05ea\u05d7\u05d9\u05dc|\u05de\u05e6\u05dc\u05d9\u05d7)|\u05d0\u05e3 \u05e4\u05e2\u05dd|\u05dc\u05d0 \u05de\u05e1\u05db\u05d9\u05de\u05d9\u05dd|\u05dc\u05d0 \u05ea\u05d5\u05d0\u05de|\u05dc\u05d0 \u05dc\u05e4\u05d9 \u05d4\u05e1\u05d3\u05e8|\u05e9\u05dc\u05d0 \u05dc\u05e4\u05d9 \u05d4\u05e1\u05d3\u05e8|\u05d4\u05d5\u05e8\u05e2|\u05d4\u05d7\u05de\u05d9\u05e8|\u05dc\u05d0 \u05de\u05e6\u05dc\u05d9\u05d7[\u05d0-\u05ea]* \u05dc\u05e9\u05d7\u05d6\u05e8|\u05d0\u05d9 \u05d0\u05e4\u05e9\u05e8 \u05dc\u05e9\u05d7\u05d6\u05e8|\u05d0\u05d9\u05df \u05db\u05dc\u05d5\u05dd \u05d1\u05dc\u05d5\u05d2\u05d9\u05dd|\u05e9\u05d5\u05dd \u05d3\u05d1\u05e8 \u05d1\u05d5\u05dc\u05d8|\u05e9\u05d5\u05dd \u05d3\u05d1\u05e8 \u05d1\u05e8\u05d5\u05e8", 'gi'),
   check: new RegExp("\\b(safe|secure|security|isolat\\w*|contained|vulnerab\\w*|replay|check (if|whether|that|why|out)|verify|is (it|this|our) (correct|right|ok))\\b|\u05d1\u05d8\u05d5\u05d7|\u05de\u05d0\u05d5\u05d1\u05d8\u05d7|\u05d0\u05d1\u05d8\u05d7\u05d4|\u05d1\u05d9\u05d3\u05d5\u05d3|\u05de\u05d1\u05d5\u05d3\u05d3|\u05e4\u05d2\u05d9\u05e2\u05d5|replay|\u05ea\u05d1\u05d3\u05d5\u05e7 (?:\u05d0\u05dd|\u05d4\u05d0\u05dd|\u05e9|\u05dc\u05de\u05d4)|\u05ea\u05d5\u05d5\u05d3\u05d0|\u05dc\u05d5\u05d5\u05d3\u05d0|\u05ea\u05d0\u05de\u05ea|\u05d4\u05d0\u05dd (?:\u05d6\u05d4|\u05d4\u05d5\u05d0|\u05d4\u05d9\u05d0) (?:\u05e0\u05db\u05d5\u05df|\u05ea\u05e7\u05d9\u05df)", 'gi'),
   scope: new RegExp("\\b(everything|whole|entire|all of (it|them)|fix all|before (the|we) (release|cut|ship)|next cut|fully real|placeholder|anything (needs|else|that)|across \\d+)\\b|\u05d4\u05db\u05dc|\u05db\u05dc \u05d4(?:\u05de\u05e2\u05e8\u05db\u05ea|\u05e7\u05d5\u05d3|\u05d1\u05e1\u05d9\u05e1|\u05e4\u05e8\u05d5\u05d9\u05e7\u05d8)|\u05db\u05d5\u05dc\u05d5|\u05db\u05dc \u05de\u05d4 \u05e9|\u05dc\u05e4\u05e0\u05d9 \u05d4\u05e9\u05d7\u05e8\u05d5\u05e8|\u05dc\u05e4\u05e0\u05d9 \u05e9\u05d0\u05e0\u05d7\u05e0\u05d5 \u05de\u05e9\u05d7\u05e8\u05e8\u05d9\u05dd|\u05e2\u05dc \u05e4\u05e0\u05d9 \\d+", 'gi'),
+  extreme: new RegExp("\\b(from scratch|end[- ]to[- ]end (?!encrypt)|entire (project|system|platform|product|codebase|stack|game)|whole (system|platform|product|codebase|stack|project|monorepo)|every (repo|service|package|issue|finding|module)\\w*|all \\d+ (services|repos|packages|modules)|autonomous\\w*|overnight|multi-(week|day)|for (a|the whole) (day|week)|formal\\w* (proof|verif\\w*|model\\w*)|prove (it|that)? ?.{0,30}(secure|correct|safe)|novel|state of the art|research\\w*|nobody (could|has|on the team)|(opus|the previous model|another model) (already )?(failed|couldn'?t|could not)|full ownership|take (it )?over|hardest)|\u05de\u05d0\u05e4\u05e1|\u05de\u05e7\u05e6\u05d4 \u05dc\u05e7\u05e6\u05d4|\u05d0\u05ea \u05db\u05dc \u05d4(?:\u05de\u05e2\u05e8\u05db\u05ea|\u05e4\u05dc\u05d8\u05e4\u05d5\u05e8\u05de\u05d4|\u05de\u05d5\u05e6\u05e8|\u05e4\u05e8\u05d5\u05d9\u05e7\u05d8|\u05de\u05e9\u05d7\u05e7|\u05e7\u05d5\u05d3)|\u05db\u05dc \u05d4\u05de\u05e2\u05e8\u05db\u05ea|\u05db\u05dc \u05d4\u05e4\u05dc\u05d8\u05e4\u05d5\u05e8\u05de\u05d4|\u05db\u05dc (?:\u05d4)?(?:\u05e8\u05d9\u05e4\u05d5|\u05e9\u05d9\u05e8\u05d5\u05ea|\u05d7\u05d1\u05d9\u05dc\u05d4|\u05d1\u05d0\u05d2|\u05de\u05de\u05e6\u05d0|\u05de\u05d5\u05d3\u05d5\u05dc)[\u05d0-\u05ea]*|\u05d1\u05d0\u05d5\u05e4\u05df \u05d0\u05d5\u05d8\u05d5\u05e0\u05d5\u05de\u05d9|\u05d0\u05d5\u05d8\u05d5\u05e0\u05d5\u05de\u05d9|\u05d1\u05de\u05e9\u05da \u05d4\u05dc\u05d9\u05dc\u05d4|\u05db\u05dc \u05d4\u05dc\u05d9\u05dc\u05d4|(?:\u05db\u05de\u05d4|\u05de\u05e1\u05e4\u05e8) (?:\u05e9\u05d1\u05d5\u05e2\u05d5\u05ea|\u05d9\u05de\u05d9\u05dd)|\u05d4\u05d5\u05db\u05d7\u05d4 \u05e4\u05d5\u05e8\u05de\u05dc\u05d9\u05ea|\u05d0\u05d9\u05de\u05d5\u05ea \u05e4\u05d5\u05e8\u05de\u05dc\u05d9|\u05ea\u05d5\u05db\u05d9\u05d7 \u05e9|\u05d7\u05d3\u05e9\u05e0\u05d9|\u05de\u05d7\u05e7\u05e8|\u05ea\u05d7\u05e7\u05d5\u05e8 \u05d0\u05ea \u05d4\u05de\u05e6\u05d1|\u05d0\u05e3 \u05d0\u05d7\u05d3 (?:\u05dc\u05d0 \u05d4\u05e6\u05dc\u05d9\u05d7|\u05d1\u05e6\u05d5\u05d5\u05ea)|(?:opus|\u05d4\u05de\u05d5\u05d3\u05dc \u05d4\u05e7\u05d5\u05d3\u05dd) (?:\u05db\u05d1\u05e8 )?(?:\u05e0\u05db\u05e9\u05dc|\u05dc\u05d0 \u05d4\u05e6\u05dc\u05d9\u05d7)|\u05d0\u05d7\u05e8\u05d9\u05d5\u05ea \u05de\u05dc\u05d0\u05d4|\u05ea\u05d9\u05e7\u05d7 \u05d0\u05ea \u05d6\u05d4|\u05d4\u05db\u05d9 \u05e7\u05e9\u05d4", 'gi'),
   act: new RegExp("\\b(and|then) (test|verify|release|deploy|implement|build|fix|run|check|update)\\b|(?:\u05d5|\u05d5\u05d0\u05d6 |\u05d0\u05d7\u05e8 \u05db\u05da )(?:\u05ea\u05d1\u05d3\u05d5\u05e7|\u05ea\u05e8\u05d9\u05e5|\u05ea\u05d1\u05e0\u05d4|\u05ea\u05ea\u05e7\u05df|\u05ea\u05de\u05de\u05e9|\u05ea\u05e2\u05d3\u05db\u05df|\u05ea\u05e4\u05e8\u05d5\u05e1|\u05ea\u05d5\u05d5\u05d3\u05d0)", 'gi'),
 }
 
 export const QUICK = new RegExp("^\\s*(yes,?\\s*|ok,?\\s*)?(please\\s+)?(just\\s+)?(commit|push|pull|merge|tag|stage|open the pr|close the pr|run the tests|thanks|thank you|rename|add the permission|install|show|list|print|what('?s| is| does| did)|how (do|many|big)|is the|which|what branch)\\b|^\\s*(?:(?:\u05db\u05df|\u05d1\u05e1\u05d3\u05e8|\u05d0\u05d5\u05e7\u05d9\u05d9)[,\\s]*)?(?:\u05d1\u05d1\u05e7\u05e9\u05d4\\s+)?(?:\u05e8\u05e7\\s+)?(?:\u05ea\u05e2\u05e9\u05d4 (?:commit|push|pull|merge|stage|tag)|\u05ea\u05de\u05e9\u05d5\u05da|\u05ea\u05e8\u05d9\u05e5 \u05d0\u05ea \u05d4\u05d1\u05d3\u05d9\u05e7\u05d5\u05ea|\u05ea\u05d5\u05d3\u05d4|\u05ea\u05e9\u05e0\u05d4 \u05d0\u05ea \u05d4\u05e9\u05dd|\u05ea\u05ea\u05e7\u05d9\u05df|\u05ea\u05e6\u05d9\u05d2|\u05ea\u05e8\u05d0\u05d4|\u05ea\u05d3\u05e4\u05d9\u05e1|\u05de\u05d4 |\u05db\u05de\u05d4|\u05d0\u05d9\u05da |\u05d0\u05d9\u05d6\u05d4|\u05d1\u05d0\u05d9\u05d6\u05d4|\u05e2\u05dc \u05d0\u05d9\u05d6\u05d4|\u05d4\u05d0\u05dd \u05d4|\u05ea\u05e4\u05ea\u05d7 \u05d0\u05ea \u05d4-PR|\u05ea\u05e1\u05d2\u05d5\u05e8 \u05d0\u05ea \u05d4-PR)", 'i')
 
-export const POSITIVE = ["tier", "deep", "effort", "hard", "symptom", "check", "scope", "act", "long"] as const
+export const TIERS = ["haiku", "sonnet", "opus", "fable"] as const
+/** Each tier's lower threshold, in order; haiku has none. */
+export const CUTS = ["t_sonnet", "t_opus", "t_fable"] as const
+
+export const POSITIVE = ["tier", "deep", "frontier", "effort", "hard", "symptom", "check", "scope", "act", "extreme", "long"] as const
 export const NEGATIVE = ["simple", "quick"] as const
 
 export const PROFILES: Record<string, { min_ollama: string; context_chars: number; prompt_chars: number }> = {
@@ -64,32 +75,38 @@ export const WEIGHTS_BY_FAMILY: Record<string, Record<string, number>> = {
   "tev1": {
     "w_tier": 2,
     "w_deep": 0.5,
+    "w_frontier": 0.5,
     "w_effort": 2,
     "w_hard": 2,
     "w_symptom": 2,
     "w_check": 2,
     "w_scope": 2,
     "w_act": 1,
+    "w_extreme": 0.5,
     "w_long": 0,
     "w_simple": 1,
     "w_quick": 2,
     "t_sonnet": 0.20017153345953148,
-    "t_opus": 0.3178137523724304
+    "t_opus": 0.3178137523724304,
+    "t_fable": 0.8
   },
   "laya": {
     "w_tier": 2,
     "w_deep": 0,
+    "w_frontier": 0.5,
     "w_effort": 1,
     "w_hard": 1,
     "w_symptom": 0,
     "w_check": 0,
     "w_scope": 0,
     "w_act": 0,
+    "w_extreme": 0.5,
     "w_long": 0.25,
     "w_simple": 0,
     "w_quick": 1,
     "t_sonnet": 0.42805173207992386,
-    "t_opus": 0.48271966442616615
+    "t_opus": 0.48271966442616615,
+    "t_fable": 0.8
   }
 }
 

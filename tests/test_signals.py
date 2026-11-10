@@ -28,6 +28,14 @@ CASES = [
     ("act", "תתקן את הבאג ותריץ את הבדיקות", True),
     ("act", "תריץ את הבדיקות", False),
     ("act", "תתקן את הבאג ותבדוק שזה עובד", True),
+    ("extreme", "build the whole platform from scratch", True),
+    ("extreme", "work autonomously overnight on every open issue", True),
+    ("extreme", "opus already failed on this, take it over", True),
+    ("extreme", "תבנה את כל הפלטפורמה מאפס", True),
+    ("extreme", "תעבוד באופן אוטונומי במשך הלילה", True),
+    ("extreme", "implement end to end encryption for the chat feature", False),
+    ("extreme", "add pagination to the /users endpoint", False),
+    ("extreme", "תוסיף עימוד ל-endpoint של /users", False),
 ]
 QUICK_CASES = [
     ("push it", True),

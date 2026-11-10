@@ -27,6 +27,10 @@ export const SIGNALS: Record<string, RegExp> = {{
 
 export const QUICK = new RegExp({json.dumps(classify.QUICK.pattern)}, 'i')
 
+export const TIERS = {json.dumps(list(classify.TIERS))} as const
+/** Each tier's lower threshold, in order; haiku has none. */
+export const CUTS = {json.dumps(list(classify.CUTS))} as const
+
 export const POSITIVE = {json.dumps(list(classify.POSITIVE))} as const
 export const NEGATIVE = {json.dumps(list(classify.NEGATIVE))} as const
 

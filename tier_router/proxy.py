@@ -38,7 +38,11 @@ MODELS = {
     "haiku": os.environ.get("TIER_ROUTER_HAIKU", "claude-haiku-5-5"),
     "sonnet": os.environ.get("TIER_ROUTER_SONNET", "claude-sonnet-5-5"),
     "opus": os.environ.get("TIER_ROUTER_OPUS", "claude-opus-5-5"),
+    "fable": os.environ.get("TIER_ROUTER_FABLE", "claude-fable-5-2"),
 }
+# The tiers that may be picked, comma separated; a tier left out goes to the
+# nearest one that is on (classify.allowed). Fable is off unless named.
+ENABLED = {t.strip() for t in os.environ.get("TIER_ROUTER_TIERS", "haiku,sonnet,opus").split(",")} & set(MODELS)
 # How far past a threshold a score must be to switch a conversation's model.
 HYSTERESIS = float(os.environ.get("TIER_ROUTER_HYSTERESIS", "0.03"))
 LOG = Path(os.environ.get("TIER_ROUTER_LOG", Path.home() / ".cache/tier-router/decisions.jsonl"))
@@ -139,9 +143,12 @@ def route(body):
         entry.update(why=f"tev1 failed: {e}", ms=int((time.time() - started) * 1000))
         return asked, entry
     entry.update(ms=int((time.time() - started) * 1000), score=round(score, 3), picked=tier)
+    tier = classify.allowed(tier, ENABLED)
+    if tier is None:
+        entry["why"] = "no tier enabled"
+        return asked, entry
     if known and tier != known["tier"]:
-        edge = min(abs(score - _weights["t_sonnet"]), abs(score - _weights["t_opus"]))
-        if edge < HYSTERESIS:
+        if classify.edge(score, _weights) < HYSTERESIS:
             entry["why"] = "kept: too close to switch"
             tier = known["tier"]
     entry.setdefault("why", "classified")

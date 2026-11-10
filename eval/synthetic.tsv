@@ -107,3 +107,33 @@ opus	is our replication setup actually safe if the primary dies mid-transaction?
 opus	the build takes 40 minutes, cut it down without dropping tests
 opus	port the networking layer from tokio to a custom io_uring runtime and keep the same API
 opus	why does the vpn drop only when the laptop switches from wifi to ethernet?
+fable	build a complete multiplayer game engine from scratch: networking, physics, rendering and a level editor
+fable	port this whole 200k-line python 2 codebase to rust, keeping the behaviour identical, module by module
+fable	design and formally verify a consensus protocol for our database, then implement it
+fable	work autonomously overnight: go through every open issue in the repo, fix them and open a PR for each
+fable	invent a compression scheme that beats zstd on our telemetry data and prove it round-trips correctly
+fable	opus already failed three times on this bug, take it over and find the real root cause
+fable	architect, build and deploy the entire platform end to end: backend, mobile apps, billing and infrastructure
+fable	write a small operating system kernel for our board from scratch: scheduler, memory manager and drivers
+fable	threat model the whole system, audit every repo and fix every finding, then prove the fixes hold
+fable	research the state of the art in CRDTs and design a novel one for rich text, with proofs it converges
+fable	rewrite the whole compiler backend to target webassembly and keep every optimisation pass correct
+fable	reverse engineer the entire firmware of this device and reimplement all of it as open source
+fable	plan and carry out a multi-week migration of all 30 microservices to an event-sourced architecture
+fable	find every concurrency bug in the whole distributed system and prove there are none left
+fable	build a full replacement for the vendor's proprietary protocol stack from the spec, interoperable with real hardware
+fable	design the whole product from zero: requirements, architecture, data model, implementation and the launch plan
+fable	this is the hardest problem we have and nobody on the team could solve it: the cluster loses writes once a month under partitions
+fable	take full ownership of the project for a day: review everything, decide the roadmap and implement the top items
+fable	the previous model's design failed in production; redesign the whole system so this class of failure cannot happen again
+fable	benchmark five storage engines on our workload with a harness you build, and write a research-grade report with a recommendation
+fable	implement a full JIT compiler for our scripting language with deoptimization and on-stack replacement
+fable	bring the entire monorepo to zero warnings, zero flaky tests and full type coverage across every package
+fable	design a cryptographic protocol for anonymous voting and prove it secure
+fable	port the entire game from the original console binary to modern PCs, decompiling whatever is needed
+fable	build an end to end backtesting platform: data pipelines, a market simulator, strategies and reports
+fable	the kernel driver, the userspace daemon and the wire protocol disagree under failures; redesign all three together so they cannot
+fable	a data corruption happens once a week somewhere between the kernel, the hypervisor and our app, opus could not find it; track it down
+fable	own the whole release autonomously: fix everything, test on all three operating systems, write the notes and ship it
+fable	design and build a new distributed file system with erasure coding and self healing
+fable	go fully autonomous: plan, build, test and deliver every feature in this 40-page spec

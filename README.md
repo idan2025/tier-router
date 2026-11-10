@@ -1,12 +1,16 @@
 # tier-router
 
-A Claude Code plugin that picks **Haiku, Sonnet or Opus for each prompt you type**, using a small
+A Claude Code plugin that picks **Haiku, Sonnet, Opus or Fable for each prompt you type**, using a small
 decision model: [tev1](https://ollama.com/library/tev1) or [laya](https://ollama.com/library/laya) running locally in Ollama
 (on your CPU or GPU, your pick), or [Jev](https://docs.typesafe.ai/models.md) in TypeSafe's cloud.
 
 - **No Claude tokens spent on routing.** tev1 and laya run on your machine (Jev is an optional cloud call); Claude is called exactly as often as without the plugin.
 - **No proxy, no `ANTHROPIC_BASE_URL`.** It sets the model of each request from inside Claude Code.
 - **Built not to miss hard tasks.** In tuning, sending an Opus task lower counts as a worse mistake than sending an easy task to Opus.
+- **Fable, the high end above Opus, is a fourth tier** for the hardest, longest work: a whole system end to end, research or
+  proofs, a long autonomous job, or a problem a strong model already failed at. It is off by default because it costs the most.
+- **You pick which models it may choose** (any of the four): a task for a model that is off goes to the nearest one above it
+  that is on, else the nearest below.
 
 ## Install
 
@@ -74,25 +78,31 @@ model and Ollama version, and `/router setup` asks again whenever you want.
 
 ## Use
 
-Nothing to do: each prompt is routed before Claude sees it, and the status line shows `router → haiku`, `sonnet` or `opus`.
+Nothing to do: each prompt is routed before Claude sees it, and the status line shows `router → haiku`, `sonnet`, `opus` or `fable`.
 
 - `/router` lists this session's recent decisions, with their scores.
 - `/router off` and `/router on` switch it for the session.
+- `/router models` asks which models it may pick, several at once (Haiku, Sonnet, Opus, Fable), and saves the choice.
 - `/router setup` checks Ollama and the model again: offers an upgrade or a download, restarts the CPU-only Ollama.
 
 Settings (in `/plugin`, or under `pluginConfigs` in settings): `ollamaUrl` (default `http://localhost:11434`),
-`tev1Model` and `device` (above), and the model ids used for each tier (`haikuModel`, `sonnetModel`, `opusModel`).
+`tev1Model` and `device` (above), the model ids used for each tier (`haikuModel`, `sonnetModel`, `opusModel`,
+`fableModel`, default `claude-fable-5-2`), and which tiers it may pick (`useHaiku`, `useSonnet`, `useOpus` on by default,
+`useFable` off). For the proxy, `TIER_ROUTER_FABLE` names the Fable model and `TIER_ROUTER_TIERS` the tiers it may pick
+(default `haiku,sonnet,opus`).
 
 ## How it decides
 
 For each prompt, the plugin sends tev1 your new message plus the last ~700 characters of Claude's previous reply.
 The reply matters because short follow-ups like "fix all of them" or "merge it" only make sense in context.
-tev1 answers four questions in one call, in about 1 s:
+tev1 answers five questions in one call, in about 1 s:
 
-1. Which tier fits (choice: haiku / sonnet / opus).
+1. Which tier fits (choice: haiku / sonnet / opus / fable).
 2. Can it be done in a minute or two? (yes/no)
 3. Does it need investigation, design, a big review or a careful large change? (yes/no)
-4. How much work is it? (score, 0–4)
+4. Is it among the hardest, longest work there is: a whole system end to end, research or proofs, a long autonomous job,
+   or a problem a strong model already failed at? (yes/no)
+5. How much work is it? (score, 0–5)
 
 Those answers and a few keyword signals are folded into one difficulty score in [0, 1]:
 

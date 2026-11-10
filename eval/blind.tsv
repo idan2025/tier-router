@@ -43,3 +43,18 @@ opus	rewrite the parser to be incremental so the editor stays fast on huge files
 opus	the encryption between the client and the relay is homemade, audit it
 opus	our numbers in grafana and in the billing db disagree, find the source of truth and fix the pipeline
 opus	check if the sandbox actually isolates the plugins from the host filesystem
+fable	create a whole new programming language for our robots from scratch: grammar, type checker, compiler and standard library
+fable	run on your own for the rest of the week and turn the prototype into a production platform across every repo
+fable	no one here has managed to make the scheduler provably starvation free; do it with a formal model and an implementation
+fable	the last model gave up on this heisenbug spread over 12 services; you take it
+fable	rebuild the entire app end to end on a new stack, keeping every feature and every user's data
+fable	write a novel algorithm for routing on a mesh with moving nodes, simulate it at scale and prove its bounds
+fable	audit our whole cryptography stack, design a replacement and migrate every service to it without downtime
+fable	take the full emulator, make it cycle accurate for every chip, and validate it against hardware traces
+fable	design our company's entire data platform from nothing: ingestion, warehouse, governance and dashboards, then build it
+fable	convert the whole C++ codebase to memory-safe rust over several days, every module, with the tests passing throughout
+fable	figure out from first principles why our model training diverges at scale, across the data, the optimizer and the cluster, and fix it
+fable	implement a full browser layout engine for our embedded UI toolkit, standards compliant
+fable	plan, staff the work and execute a full rewrite of the billing system with zero lost transactions, end to end
+fable	build a complete operating environment for the device: bootloader, kernel, drivers and the app framework
+fable	research and design a new consensus algorithm that tolerates byzantine nodes on a lossy mesh, with a proof and a prototype

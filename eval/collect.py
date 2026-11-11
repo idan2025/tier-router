@@ -65,6 +65,8 @@ def main():
         if k not in cache:
             cache[k] = ask_tev1(c["prompt"], c.get("context", ""), timeout=120)
             asked += 1
+            if asked % 10 == 0:  # a stopped run keeps what it has asked so far
+                path.write_text(json.dumps(cache))
     path.write_text(json.dumps(cache))
     print(f"{len(cases)} cases, {asked} asked, {len(cache)} cached")
 

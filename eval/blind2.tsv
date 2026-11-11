@@ -1,0 +1,32 @@
+haiku	what does the -r flag do in cp?
+haiku	rename the function getUser to fetchUser in api.ts
+haiku	is json allowed to have comments?
+haiku	bump the version in package.json to 1.4.2
+haiku	which command shows listening ports on linux?
+haiku	remove the console.log on line 40 of index.js
+haiku	what is the git command to undo the last commit but keep the changes?
+haiku	add a newline at the end of the license file
+sonnet	add a retry with backoff to the http client and test it
+sonnet	the csv export drops the header row when there is no data, fix it
+sonnet	write a cli tool that merges several json files into one with a flag for the key order
+sonnet	add rate limiting to the public api, 100 requests per minute per key
+sonnet	replace the deprecated request library with fetch across the project's 6 api calls
+sonnet	add a settings page where a user can change their display name and avatar
+sonnet	write a migration that adds a created_at column and backfills it from the logs table
+sonnet	make the search box debounce its requests and cancel the stale ones
+opus	our users' sessions get invalidated at random times, find the cause even though the logs look clean
+opus	review the whole auth refactor for security problems before we merge it
+opus	figure out why throughput collapses when the queue has more than a million messages
+opus	design a caching layer for the whole api that stays consistent with writes, then implement it
+opus	the build is non-deterministic, two clean builds differ, find out why
+opus	check if our backup and restore actually works when the primary database is corrupted
+opus	why does the app freeze for two seconds on some phones only? we have no repro
+opus	we need to split the payments service out of the monolith without losing in-flight transactions, plan and do the first step
+fable	build a full video editing application from scratch: timeline, effects, export and plugins
+fable	autonomously migrate every service in the company from python to go, one by one, with tests, over the coming week
+fable	invent and prove a new consistency model for our offline-first sync engine, and implement it end to end
+fable	three engineers and another model could not find this data corruption in the storage stack; take it from here and solve it
+fable	rebuild the whole billing platform end to end, migrate the existing customers and shut the old system down
+fable	design, build and ship a complete mobile game, with art pipeline, servers, matchmaking and analytics
+fable	audit every dependency in all our repos, patch what is exploitable and prove nothing reachable is left
+fable	take ownership of the platform for the rest of the quarter: plan, build and release the roadmap yourself

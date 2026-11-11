@@ -1,7 +1,7 @@
 {
   "name": "tier-router",
-  "version": "0.3.1",
-  "description": "Picks Haiku, Sonnet or Opus for each prompt with a decision model: tev1 or laya locally in Ollama (on CPU or GPU), or Jev in TypeSafe's cloud. No proxy, no Claude tokens spent on routing.",
+  "version": "0.4.0",
+  "description": "Picks Haiku, Sonnet, Opus or Fable for each prompt with a decision model: tev1 or laya locally in Ollama (on CPU or GPU), or Jev in TypeSafe's cloud. Pick which models it may choose. No proxy, no Claude tokens spent on routing.",
   "author": {
     "name": "idan2025"
   },
@@ -82,6 +82,36 @@
       "title": "Opus model",
       "description": "Model id for hard tasks.",
       "default": "claude-opus-5-5"
+    },
+    "fableModel": {
+      "type": "string",
+      "title": "Fable model",
+      "description": "Model id for the hardest, longest tasks: above Opus.",
+      "default": "claude-fable-5-2"
+    },
+    "useHaiku": {
+      "type": "boolean",
+      "title": "Use Haiku",
+      "description": "Let the router pick Haiku for quick tasks. A task for a model that is off goes to the nearest one above it that is on, else the nearest below. `/router models` sets all four at once.",
+      "default": true
+    },
+    "useSonnet": {
+      "type": "boolean",
+      "title": "Use Sonnet",
+      "description": "Let the router pick Sonnet for normal tasks. A task for a model that is off goes to the nearest one above it that is on, else the nearest below. `/router models` sets all four at once.",
+      "default": true
+    },
+    "useOpus": {
+      "type": "boolean",
+      "title": "Use Opus",
+      "description": "Let the router pick Opus for hard tasks. A task for a model that is off goes to the nearest one above it that is on, else the nearest below. `/router models` sets all four at once.",
+      "default": true
+    },
+    "useFable": {
+      "type": "boolean",
+      "title": "Use Fable",
+      "description": "Let the router pick Fable, the high end above Opus, for the hardest tasks. Off by default: it costs the most. A task for a model that is off goes to the nearest one above it that is on, else the nearest below. `/router models` sets all four at once.",
+      "default": false
     }
   }
 }

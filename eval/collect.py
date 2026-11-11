@@ -9,6 +9,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from tier_router.classify import BACKEND, MODEL, QUESTIONS, ask_tev1, family, state_for
 
+# laya is English-only: it is neither asked the Hebrew sets nor fitted on them.
+ENGLISH_ONLY = BACKEND != "jev" and family(MODEL) == "laya"
+
+
+def files(names):
+    return [n for n in names if not (ENGLISH_ONLY and n.startswith("hebrew_"))]
+
 HERE = Path(__file__).resolve().parent
 
 
@@ -26,18 +33,20 @@ def load_cases():
     # published; the evaluation runs on the rest without it.
     real = HERE / "real.jsonl"
     cases = [json.loads(l) for l in open(real)] if real.exists() else []
-    for line in open(HERE / "synthetic.tsv"):
-        label, prompt = line.rstrip("\n").split("\t", 1)
-        cases.append({"prompt": prompt, "context": "", "label": label, "source": "synthetic"})
+    for name in files(("synthetic.tsv", "hebrew_synthetic.tsv")):
+        for line in open(HERE / name, encoding="utf-8"):
+            label, prompt = line.rstrip("\n").split("\t", 1)
+            cases.append({"prompt": prompt, "context": "", "label": label, "source": name.removesuffix(".tsv")})
     return cases
 
 
 def load_blind():
     """Written after the first round of tuning and never fitted on."""
     cases = []
-    for line in open(HERE / "blind.tsv"):
-        label, prompt = line.rstrip("\n").split("\t", 1)
-        cases.append({"prompt": prompt, "context": "", "label": label, "source": "blind"})
+    for name in files(("blind.tsv", "hebrew_blind.tsv", "blind2.tsv", "hebrew_blind2.tsv", "blind3.tsv", "hebrew_blind3.tsv", "blind4.tsv", "hebrew_blind4.tsv")):
+        for line in open(HERE / name, encoding="utf-8"):
+            label, prompt = line.rstrip("\n").split("\t", 1)
+            cases.append({"prompt": prompt, "context": "", "label": label, "source": name.removesuffix(".tsv")})
     return cases
 
 
@@ -56,6 +65,8 @@ def main():
         if k not in cache:
             cache[k] = ask_tev1(c["prompt"], c.get("context", ""), timeout=120)
             asked += 1
+            if asked % 10 == 0:  # a stopped run keeps what it has asked so far
+                path.write_text(json.dumps(cache))
     path.write_text(json.dumps(cache))
     print(f"{len(cases)} cases, {asked} asked, {len(cache)} cached")
 

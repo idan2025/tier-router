@@ -1,16 +1,18 @@
-// Which Claude tier a request needs: the decision model's answers to four questions and a
-// few keyword signals, folded into one difficulty score and cut by two fitted
-// thresholds. The same computation as tier_router/classify.py, which the
+// Which Claude tier a request needs: the decision model's answers to five questions and a
+// few keyword signals, folded into one difficulty score and cut by three fitted
+// thresholds (haiku, sonnet, opus, and fable, the high end above Opus). The same computation as tier_router/classify.py, which the
 // evaluation in eval/ runs; the data both use is generated into model.ts.
 
-import { NEGATIVE, POSITIVE, PROFILES, QUESTIONS, QUICK, SIGNALS, WEIGHTS, WEIGHTS_BY_FAMILY } from './model.ts'
+import { CUTS, NEGATIVE, POSITIVE, PROFILES, QUESTIONS, QUICK, SIGNALS, TIERS, WEIGHTS, WEIGHTS_BY_FAMILY } from './model.ts'
 
-export type Tier = 'haiku' | 'sonnet' | 'opus'
+export type Tier = (typeof TIERS)[number]
+export { TIERS }
 
 export type Answers = {
   tier: { probabilities: Record<string, number> }
   simple: { noul: number }
   deep: { noul: number }
+  frontier?: { noul: number }
   effort: { score: number }
 }
 
@@ -34,9 +36,16 @@ export function profile(model: string): { min_ollama: string; context_chars: num
   return PROFILES[family(model)] ?? PROFILES.tev1!
 }
 
+/** Whose fitted weights a model uses: Jev's own (`jev-latest` -> `jev`), though it is
+ * shown tev1's state, else its family's. */
+export function weightsFamily(model: string): string {
+  const name = (model.split(':', 1)[0] ?? '').split('/').pop() ?? ''
+  return name.startsWith('jev') ? 'jev' : family(model)
+}
+
 /** The fitted weights for a decision model. */
 export function weightsFor(model: string): Record<string, number> {
-  return WEIGHTS_BY_FAMILY[family(model)] ?? WEIGHTS
+  return WEIGHTS_BY_FAMILY[weightsFamily(model)] ?? WEIGHTS
 }
 
 /** What the decision model is shown: tev1's context is about 2,000 tokens,
@@ -65,10 +74,13 @@ export function features(prompt: string, a: Answers): Features {
   const t = a.tier.probabilities
   const text = trim(prompt, 4000)
   const levels = QUESTIONS.effort.criteria.length - 1
+  const top = TIERS.length - 1
   const f: Features = {
-    tier: (t.sonnet ?? 0) * 0.5 + (t.opus ?? 0),
+    // The expected rank of the tier the model would pick, in [0, 1].
+    tier: TIERS.reduce((s, name, i) => s + (t[name] ?? 0) * (i / top), 0),
     simple: a.simple.noul,
     deep: a.deep.noul,
+    frontier: a.frontier?.noul ?? 0,
     effort: (a.effort.score ?? 0) / levels,
     long: Math.min(text.length / 1500, 1),
   }
@@ -95,12 +107,22 @@ export function score(f: Features, w: Record<string, number> = WEIGHTS): number 
 }
 
 export function tierFor(s: number, w: Record<string, number> = WEIGHTS): Tier {
-  if (s >= get(w, 't_opus')) return 'opus'
-  if (s >= get(w, 't_sonnet')) return 'sonnet'
+  for (let i = CUTS.length - 1; i >= 0; i--) if (s >= get(w, CUTS[i]!)) return TIERS[i + 1]!
   return 'haiku'
 }
 
-/** How close a score is to either threshold. */
+/** How close a score is to any threshold. */
 export function edge(s: number, w: Record<string, number> = WEIGHTS): number {
-  return Math.min(Math.abs(s - get(w, 't_sonnet')), Math.abs(s - get(w, 't_opus')))
+  return Math.min(...CUTS.map(c => Math.abs(s - get(w, c))))
+}
+
+/** The tier to use when only `enabled` tiers may be picked: the tier itself,
+ * else the nearest enabled one above it (a hard task is never sent lower while
+ * a higher model is on), else the nearest below; undefined when none is on.
+ * The same rule as classify.allowed. */
+export function allowed(tier: Tier, enabled: ReadonlySet<Tier>): Tier | undefined {
+  if (enabled.has(tier)) return tier
+  const i = TIERS.indexOf(tier)
+  const order = [...TIERS.slice(i + 1), ...TIERS.slice(0, i).reverse()]
+  return order.find(t => enabled.has(t))
 }

@@ -1,0 +1,36 @@
+haiku	what is the default branch name git uses now?
+haiku	change the port in the readme example from 3000 to 8080
+haiku	how do i list docker containers including stopped ones?
+haiku	remove the trailing whitespace in main.rs
+haiku	is a tuple mutable in python?
+haiku	print the current git branch
+haiku	what does chmod 755 mean?
+haiku	fix the spelling of "seperate" in the docs
+haiku	which npm command installs only production dependencies?
+haiku	add a todo comment above the parser function
+sonnet	add a health check endpoint that reports db connectivity and test it
+sonnet	the date picker shows the wrong month on the first of each month, fix it
+sonnet	write a script that finds duplicate files by hash and lists them
+sonnet	add csv import to the contacts page with a preview step
+sonnet	split the 600-line utils file into modules by topic and fix the imports
+sonnet	add a loading skeleton to the dashboard cards
+sonnet	make the logger include the request id on every line
+sonnet	write tests for the invoice total calculation with discounts and tax
+sonnet	add an environment variable for the api base url and use it everywhere
+sonnet	fix the flaky test in the cart module, the failure shows a timing assertion
+opus	check whether the queue really never delivers a message twice, and fix it if it does
+opus	why does the app log users out only on the staging cluster even though the config is identical?
+opus	review our whole secrets handling for leaks: code, ci logs, images and backups
+opus	figure out why p99 latency jumps every hour on the hour
+opus	design the data retention and deletion flow so we can honour erasure requests across all stores
+opus	the search index and the database disagree on counts, track down where writes get lost
+opus	verify that the permission checks run on every route and fix the ones that don't
+opus	find why the container is killed after a few hours while the metrics look normal
+fable	build a complete project management tool from scratch with boards, time tracking, reports and an api
+fable	take over the whole rewrite to a new framework, every page and every test, and keep going until it ships
+fable	design a new binary serialization format for our rpc, prove it can't be misparsed, and implement it in four languages
+fable	nobody has found the cause of the monthly cluster outage after three post-mortems; own it and fix it for good
+fable	autonomously upgrade every dependency across all forty repos, fixing breakages, and report when done
+fable	create an entire open source library for geospatial indexing: research, design, code, docs and benchmarks
+fable	rebuild the observability stack end to end: collection, storage, alerts and dashboards for every service
+fable	run the whole security program for the next two weeks: threat models, audits, fixes and verification

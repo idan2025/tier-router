@@ -1,12 +1,16 @@
 # tier-router
 
-A Claude Code plugin that picks **Haiku, Sonnet or Opus for each prompt you type**, using a small
+A Claude Code plugin that picks **Haiku, Sonnet, Opus or Fable for each prompt you type**, using a small
 decision model: [tev1](https://ollama.com/library/tev1) or [laya](https://ollama.com/library/laya) running locally in Ollama
 (on your CPU or GPU, your pick), or [Jev](https://docs.typesafe.ai/models.md) in TypeSafe's cloud.
 
 - **No Claude tokens spent on routing.** tev1 and laya run on your machine (Jev is an optional cloud call); Claude is called exactly as often as without the plugin.
 - **No proxy, no `ANTHROPIC_BASE_URL`.** It sets the model of each request from inside Claude Code.
 - **Built not to miss hard tasks.** In tuning, sending an Opus task lower counts as a worse mistake than sending an easy task to Opus.
+- **Fable, the high end above Opus, is a fourth tier** for the hardest, longest work: a whole system end to end, research or
+  proofs, a long autonomous job, or a problem a strong model already failed at. It is off by default because it costs the most.
+- **You pick which models it may choose** (any of the four): a task for a model that is off goes to the nearest one above it
+  that is on, else the nearest below.
 
 ## Install
 
@@ -35,9 +39,9 @@ and `jevApiKey` in `/plugin` (or under `pluginConfigs`); `jevModel` (default `je
 Jev is billed per input token and the prompt text leaves your machine, which tev1 never does. For the Python
 eval and proxy, set `ROUTER_BACKEND=jev` and `TYPESAFE_API_KEY`.
 
-**The thresholds were fitted on tev1's answers.** Jev's probabilities differ, so rerun
-`python3 -I eval/collect.py` and `eval/tune.py --blind` with `ROUTER_BACKEND=jev` before trusting its tiers
-(`eval/cache.json` holds tev1's answers, so move it aside first).
+**Each decision model has its own weights**, fitted on its own answers: tev1's in `tier_router/weights.json`,
+Jev's in `tier_router/weights-jev.json`, laya's in `tier_router/weights-laya.json`. Jev is shown the same state as tev1;
+only the weights differ.
 
 ## Choosing the decision model and where it runs
 
@@ -74,25 +78,31 @@ model and Ollama version, and `/router setup` asks again whenever you want.
 
 ## Use
 
-Nothing to do: each prompt is routed before Claude sees it, and the status line shows `router → haiku`, `sonnet` or `opus`.
+Nothing to do: each prompt is routed before Claude sees it, and the status line shows `router → haiku`, `sonnet`, `opus` or `fable`.
 
 - `/router` lists this session's recent decisions, with their scores.
 - `/router off` and `/router on` switch it for the session.
+- `/router models` asks which models it may pick, several at once (Haiku, Sonnet, Opus, Fable), and saves the choice.
 - `/router setup` checks Ollama and the model again: offers an upgrade or a download, restarts the CPU-only Ollama.
 
 Settings (in `/plugin`, or under `pluginConfigs` in settings): `ollamaUrl` (default `http://localhost:11434`),
-`tev1Model` and `device` (above), and the model ids used for each tier (`haikuModel`, `sonnetModel`, `opusModel`).
+`tev1Model` and `device` (above), the model ids used for each tier (`haikuModel`, `sonnetModel`, `opusModel`,
+`fableModel`, default `claude-fable-5-2`), and which tiers it may pick (`useHaiku`, `useSonnet`, `useOpus` on by default,
+`useFable` off). For the proxy, `TIER_ROUTER_FABLE` names the Fable model and `TIER_ROUTER_TIERS` the tiers it may pick
+(default `haiku,sonnet,opus`).
 
 ## How it decides
 
 For each prompt, the plugin sends tev1 your new message plus the last ~700 characters of Claude's previous reply.
 The reply matters because short follow-ups like "fix all of them" or "merge it" only make sense in context.
-tev1 answers four questions in one call, in about 1 s:
+tev1 answers five questions in one call, in about 1 s:
 
-1. Which tier fits (choice: haiku / sonnet / opus).
+1. Which tier fits (choice: haiku / sonnet / opus / fable).
 2. Can it be done in a minute or two? (yes/no)
 3. Does it need investigation, design, a big review or a careful large change? (yes/no)
-4. How much work is it? (score, 0–4)
+4. Is it among the hardest, longest work there is: a whole system end to end, research or proofs, a long autonomous job,
+   or a problem a strong model already failed at? (yes/no)
+5. How much work is it? (score, 0–5)
 
 Those answers and a few keyword signals are folded into one difficulty score in [0, 1]:
 
@@ -101,9 +111,10 @@ Those answers and a few keyword signals are folded into one difficulty score in 
 - **open-ended checks:** "is it safe", "isolated"…
 - **scope:** "everything", "before the release"…
 - **several actions:** "and test it"
+- **the high end (Fable):** "from scratch", "autonomously", "for the next two weeks", "take ownership", "after three post-mortems"…
 - **quick commands:** "push it", "what's…" (lowers the score)
 
-Two fitted thresholds turn the score into a tier.
+Three fitted thresholds turn the score into a tier (haiku, sonnet, opus, fable).
 
 **Model switches:**
 - The decision is made once per turn, and every request in that turn (tool calls and their results) uses it, so a turn never changes model halfway.
@@ -114,47 +125,69 @@ If the decision model is unreachable or takes more than 8 s, the turn keeps your
 
 ## How well it works
 
-Tuned on 141 labeled prompts: 109 published in `eval/synthetic.tsv`, plus 32 real prompts from the author's own
-sessions that are not published. A further 45 prompts (`eval/blind.tsv`) were written after the first round
-of tuning and scored once, at the end.
+**Jev** (TypeSafe's cloud decision model) first; tev1 and laya, each with weights fitted on its own answers, below. The four-tier
+weights were fitted on 378 labeled prompts: 189 written for this (`eval/synthetic.tsv`) and their line-for-line Hebrew
+translations (`eval/hebrew_synthetic.tsv`). Four blind sets were written after the fit and scored only once each:
+`blind.tsv` (60 prompts), `blind2.tsv` (32), `blind3.tsv` (36) and `blind4.tsv` (32), every one with a Hebrew twin. The cost rules count an Opus or Fable task sent too low as the worst mistake.
 
-| | Accuracy | Opus tasks missed | Easy tasks sent to Opus |
+| English blind sets | Accuracy | Hard tasks sent below Opus | Fable tasks missed |
 | --- | --- | --- | --- |
-| tev1's own choice, blind set | 89% | 2 of 15 | 1 of 30 |
-| **tier-router, blind set** | **91%** | **0 of 15** | 1 of 30 |
-| tev1's own choice, 141 tuning prompts | 82% | 17 of 49 | 2 of 92 |
-| tier-router, 5-fold cross-validation on the 141 | 86% | 6 of 49 | 5 of 92 |
+| Jev's own choice, all eight sets (English and Hebrew) | 89% | 7 of 156 | 22 of 78 |
+| **tier-router, `blind` (first round)** | **97%** (58/60) | 1 of 30 | 0 of 15 |
+| **tier-router, `blind2`** | **100%** (32/32) | 0 of 16 | 0 of 8 |
+| **tier-router, `blind3`** | **97%** (35/36) | 0 of 16 | 0 of 8 |
+| **tier-router, `blind4` (written last, never fitted or tuned on)** | **91%** (29/32) | 0 of 16 | 3 of 8 |
+
+Across the four English sets that is 154 of 160 right (96%). Hebrew (below) is 148 of 160 (92.5%).
 
 Caveats:
-- **These are small samples, labeled by one person.** tev1's model card reports about 73% on public
-  human-labeled decision sets, so expect mistakes.
-- **The published data alone gives weaker weights.** Refitted on just the 109 published prompts, the router
-  matches tev1's own choice on the blind set rather than beating it. Most of the gain comes from the 32 real follow-up prompts.
-- **Its mistakes lean toward a higher tier.** That costs some money, but a task doesn't fail for being given too small a model.
+- **These are small samples, labeled by one person.** Where a task sits between two tiers (for example "update all
+  the dependencies and fix whatever breaks": Sonnet or Opus?) the label is a judgment, so 100% is not a real ceiling.
+- **The mistakes that remain lean the safe way:** nearly all are Fable-level work sent to Opus, which is still a
+  strong model. Opus-level work sent below Opus is 2 of 156 blind tasks (both languages).
+- **blind, blind2 and blind3 were looked at between rounds** and the keyword rules were extended with general rules for
+  what they showed (checks that something *really* holds, "even though", time horizons); only `blind4` is clean of that.
 
-**Hebrew.** The keyword rules used to be English-only, so Hebrew prompts rested on tev1 alone. `eval/hebrew_synthetic.tsv`
-and `eval/hebrew_blind.tsv` are line-for-line translations of the two sets above, with the same labels, so any gap is the
-cost of the language. With the shipped weights:
+**Hebrew.** The same prompts translated line for line, with the same labels, so any gap is the cost of the language.
+The Hebrew keyword rules are a translation of the English ones; the weights are shared and were never fitted on Hebrew
+alone.
 
-| | English | Hebrew before | Hebrew now |
+| Hebrew blind sets | Accuracy | Hard tasks sent below Opus | Fable tasks missed |
 | --- | --- | --- | --- |
-| blind set, accuracy | 91% | 84% | 93% |
-| blind set, Opus tasks missed | 0 of 15 | 3 of 15 | 0 of 15 |
-| 109 published prompts, accuracy | 95% | 87% | 91% |
+| `hebrew_blind` | 93% (56/60) | 1 of 30 | 2 of 15 |
+| `hebrew_blind2` | 97% (31/32) | 0 of 16 | 1 of 8 |
+| `hebrew_blind3` | 92% (33/36) | 0 of 16 | 2 of 8 |
+| `hebrew_blind4` | 88% (28/32) | 0 of 16 | 4 of 8 |
 
-The Hebrew rules are a plain translation of the English word lists, written before looking at any Hebrew result, and the
-weights are unchanged; English results are identical. Still only 45 blind prompts, translated by one person: a few points
-of that gain may be noise. `python3 -I eval/lang.py` reruns the comparison.
+`python3 -I eval/lang.py` reruns English against Hebrew.
 
-**laya.** Fitted on the 109 published prompts only (the 32 private ones were not available for it), with the same
-cost rules, then scored once on the blind set:
+**tev1.** Refitted for the four tiers on its own answers to the same 378 training prompts (English and Hebrew), then
+scored on the same eight blind sets. Before this it routed with Jev's weights: 85% English, 81% Hebrew.
 
-| | Accuracy | Opus tasks missed | Easy tasks sent to Opus |
+| | English (160) | Hebrew (160) | Hard tasks sent below Opus | Fable tasks missed |
+| --- | --- | --- | --- | --- |
+| **tier-router with tev1** | **95%** (152) | **88%** (141) | 2 of 156 | 12 of 78 |
+| tier-router with tev1, 5-fold cross-validation on the 378 | 91% (both) | | 4 of 190 | 12 of 80 |
+| by set: `blind` / `blind2` / `blind3` / `blind4` | 93% / 97% / 94% / 97% | 85% / 94% / 92% / 84% | | |
+
+tev1's own choice gets 77% of the 320 blind prompts. In English the router with tev1 is about as accurate as with Jev
+(95% against 96%); in Hebrew it is behind (88% against 92.5%), almost all of it Fable work in Hebrew sent to Opus
+(11 of 39). Finer weight grids and more Hebrew keyword phrases were tried and scored worse in cross-validation, so they
+are not used.
+
+**laya.** Refitted for the four tiers on its own answers to the 189 English training prompts (never the Hebrew ones), then
+scored on the four English blind sets (160 prompts):
+
+| | Accuracy | Hard tasks sent below Opus | Fable tasks missed |
 | --- | --- | --- | --- |
-| laya's own choice, blind set | 78% | 0 of 15 | 5 of 30 |
-| **tier-router with laya, blind set** | **91%** | 1 of 15 | 1 of 30 |
-| tier-router with laya, 5-fold cross-validation on the 109 | 89% | 2 of 35 | 5 of 74 |
-| tier-router with laya, Hebrew blind set (for comparison) | 76% | 8 of 15 | 1 of 30 |
+| laya's own choice | 48% | 0 of 78 | 16 of 39 |
+| **tier-router with laya** | **82%** (132/160) | 3 of 78 | 4 of 39 |
+| tier-router with laya, 5-fold cross-validation on the 189 | 73% | 5 of 95 | 10 of 40 |
+| by set: `blind` / `blind2` / `blind3` / `blind4` | 85% / 78% / 89% / 75% | | |
+
+laya is far less accurate than Jev or tev1 (96% and 95% on the same sets). Its own choice sends nearly every easy task to a high tier, and
+the router's rules and weights correct much of that, but it also sends 7 of 82 easy tasks high. Use tev1 or Jev when the
+tier matters; laya is for when you want a 0.8 GB model that answers in about 0.3 s.
 
 laya is **English-only**: for Hebrew prompts use tev1.
 
@@ -167,9 +200,9 @@ python3 -I eval/tune.py --blind --write
 
 `--write` updates `tier_router/weights.json` and regenerates `hooks/model.ts`, which the plugin reads.
 Prefix both with `ROUTER_MODEL=laya` to tune laya instead: its answers are cached in `eval/cache-laya.json` and its
-weights go to `tier_router/weights-laya.json`.
-The plugin's TypeScript and the evaluation's Python compute identical scores (checked on all 186 prompts with tev1,
-and on the 154 published ones with laya).
+weights go to `tier_router/weights-laya.json`. With `ROUTER_BACKEND=jev` (and `TYPESAFE_API_KEY`) it is Jev's:
+`eval/cache-jev.json` and `tier_router/weights-jev.json`.
+The plugin's TypeScript and the evaluation's Python compute the same scores.
 
 ## Without the plugin: the proxy
 

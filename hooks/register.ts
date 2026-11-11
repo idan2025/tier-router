@@ -1,7 +1,11 @@
 // tier-router: before each prompt's turn, ask a decision model (tev1 or laya,
-// local in Ollama, or Jev, TypeSafe's cloud model) which of Haiku, Sonnet or
-// Opus the prompt needs, and send every model request of that turn to it.
+// local in Ollama, or Jev, TypeSafe's cloud model) which of Haiku, Sonnet, Opus
+// or Fable (the high end, above Opus) the prompt needs, and send every model
+// request of that turn to it.
 //
+// - Only the tiers the user turned on are picked (useHaiku … useFable, or
+//   `/router models`): a tier that is off goes to the nearest one above it that
+//   is on, else the nearest below (classify.ts `allowed`).
 // - The decision is made once per turn, at `turn.start`, and every step of the
 //   turn (its tool-result follow-ups) uses it: a turn never changes model
 //   halfway, so its prompt cache holds.
@@ -16,16 +20,16 @@
 
 import type { EngineInterface as Engine, Register } from 'claude-code'
 
-import { edge, family, features, profile, request, score, tierFor, weightsFor, type Answers, type Tier } from './classify.ts'
+import { allowed, edge, family, features, profile, request, score, tierFor, TIERS, weightsFor, type Answers, type Tier } from './classify.ts'
 import { atLeast, CPU_PORT, cpuServer, hasModel, needsNewerOllama, processor, pull, staleModels, upgrade, upgradePlan, version } from './ollama.ts'
 
 /** This plugin's version, shown by `/router`. Kept equal to plugin.json by tests/test_version.py. */
-const VERSION = '0.3.1'
+const VERSION = '0.4.0'
 
 const HYSTERESIS = 0.03
 const TIMEOUT_MS = 8000
 
-type Decision = { tier: Tier; score: number; ms: number; prompt: string; kept?: boolean }
+type Decision = { tier: Tier; picked: Tier; score: number; ms: number; prompt: string; kept?: boolean }
 type Device = 'auto' | 'cpu' | 'gpu'
 type Config = { backend: 'ollama' | 'jev'; url: string; model: string; apiKey: string; device: Device }
 type Where = 'cpu' | 'gpu' | 'split' | undefined
@@ -38,8 +42,21 @@ async function giveUp($: Engine, ms: number): Promise<never> {
   throw new Error(`no answer in ${ms / 1000} s`)
 }
 
+/** The tiers' names as `/router models` shows them, and the setting for each. */
+const LABELS: Record<Tier, string> = { haiku: 'Haiku', sonnet: 'Sonnet', opus: 'Opus', fable: 'Fable' }
+const FIELDS: Record<Tier, string> = { haiku: 'useHaiku', sonnet: 'useSonnet', opus: 'useOpus', fable: 'useFable' }
+/** On unless set otherwise; Fable, the dearest, only when turned on. */
+const DEFAULT_ON: Record<Tier, boolean> = { haiku: true, sonnet: true, opus: true, fable: false }
+
+function isOn(value: unknown, fallback: boolean): boolean {
+  if (typeof value === 'boolean') return value
+  if (value === 'true' || value === 'false') return value === 'true'
+  return fallback
+}
+
 /** The decision model's tier for a prompt, or why there is none. */
-async function decide($: Engine, cfg: Config, url: string, prompt: string, context: string, current: Tier | undefined): Promise<Decision | string> {
+async function decide($: Engine, cfg: Config, url: string, prompt: string, context: string, current: Tier | undefined, enabled: ReadonlySet<Tier>): Promise<Decision | string> {
+  if (!enabled.size) return 'no model is turned on: /router models'
   if (cfg.backend === 'jev' && !cfg.apiKey) return 'jev needs a jevApiKey (set it in /plugin)'
   const started = await $.clock.now()
   try {
@@ -61,13 +78,14 @@ async function decide($: Engine, cfg: Config, url: string, prompt: string, conte
     const answers = JSON.parse(res.text).answers as Answers
     const w = weightsFor(cfg.model)
     const s = score(features(prompt, answers), w)
-    let tier = tierFor(s, w)
+    const picked = tierFor(s, w)
+    let tier = allowed(picked, enabled)!
     let kept = false
-    if (current && tier !== current && edge(s, w) < HYSTERESIS) {
+    if (current && tier !== current && enabled.has(current) && edge(s, w) < HYSTERESIS) {
       tier = current
       kept = true
     }
-    return { tier, score: s, ms: (await $.clock.now()) - started, prompt: prompt.slice(0, 80), kept }
+    return { tier, picked, score: s, ms: (await $.clock.now()) - started, prompt: prompt.slice(0, 80), kept }
   } catch (err) {
     return `${cfg.backend} unreachable (${err instanceof Error ? err.message : String(err)})`
   }
@@ -199,10 +217,12 @@ async function setUp($: Engine, cfg: Config, rt: Runtime, ask: 'always' | 'once'
 
 export const register: Register = (on, options) => {
   const models: Record<Tier, string> = {
-    haiku: String(options.haikuModel ?? 'claude-haiku-5-5'),
-    sonnet: String(options.sonnetModel ?? 'claude-sonnet-5-5'),
-    opus: String(options.opusModel ?? 'claude-opus-5-5'),
+    haiku: String(options.haikuModel || 'claude-haiku-5-5'),
+    sonnet: String(options.sonnetModel || 'claude-sonnet-5-5'),
+    opus: String(options.opusModel || 'claude-opus-5-5'),
+    fable: String(options.fableModel || 'claude-fable-5-2'),
   }
+  const enabled = new Set(TIERS.filter(t => isOn(options[FIELDS[t]], DEFAULT_ON[t])))
   const backend: Config['backend'] = options.backend === 'jev' ? 'jev' : 'ollama'
   const cfg: Config = {
     backend,
@@ -221,7 +241,7 @@ export const register: Register = (on, options) => {
   const recent: (Decision | string)[] = []
   let lastReply = ''
   let current: Tier | undefined
-  let isOn = true
+  let routing = true
 
   function remember(d: Decision | string) {
     recent.push(d)
@@ -231,8 +251,8 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'router',
-      description: 'tier-router: show recent routing decisions; `/router off` or `/router on` to switch it; `/router setup` to check Ollama and the model',
-      argumentHint: '[on|off|setup]',
+      description: 'tier-router: show recent routing decisions; `/router off` or `/router on` to switch it; `/router models` to pick which models it may choose; `/router setup` to check Ollama and the model',
+      argumentHint: '[on|off|models|setup]',
     })
     // Not awaited, so the session starts at once.
     void setUp($, cfg, rt, 'once')
@@ -242,22 +262,42 @@ export const register: Register = (on, options) => {
   on('command.run', { command: 'router' }, async ($, e) => {
     const arg = String(e.args ?? '').trim().toLowerCase()
     if (arg === 'off' || arg === 'on') {
-      isOn = arg === 'on'
-      $.ui.status(isOn ? undefined : 'router off')
-      return { text: `tier-router is ${isOn ? 'on' : 'off'} for this session.` }
+      routing = arg === 'on'
+      $.ui.status(routing ? undefined : 'router off')
+      return { text: `tier-router is ${routing ? 'on' : 'off'} for this session.` }
     }
     if (arg === 'setup') return { text: await setUp($, cfg, rt, 'always') }
+    if (arg === 'models') {
+      const answer = await $.ui
+        .ask('Which models may tier-router pick? A task for one that is off goes to the nearest one above it that is on.', {
+          options: TIERS.map(t => LABELS[t]),
+          header: 'Models',
+          multiSelect: true,
+        })
+        .catch(() => undefined)
+      if (answer === undefined) return { text: `Models unchanged: ${TIERS.filter(t => enabled.has(t)).map(t => LABELS[t]).join(', ')}.` }
+      const chosen = new Set(answer.split(',').map(a => a.trim()))
+      const picks = TIERS.filter(t => chosen.has(LABELS[t]))
+      if (!picks.length) return { text: 'Pick at least one model; nothing was changed.' }
+      const refused: string[] = []
+      for (const t of TIERS) {
+        const r = await $.config.set({ key: `tier-router.${FIELDS[t]}`, value: picks.includes(t) })
+        if (r && typeof r === 'object' && 'deny' in r) refused.push(`${LABELS[t]}: ${String(r.deny)}`)
+      }
+      if (refused.length) return { text: `Could not save every choice (${refused.join('; ')}).` }
+      return { text: `tier-router picks from: ${picks.map(t => LABELS[t]).join(', ')}.` }
+    }
     const lines = recent.length
       ? recent.map(d =>
           typeof d === 'string'
             ? `- kept the session's model: ${d}`
-            : `- **${d.tier}** (score ${d.score.toFixed(2)}, ${d.ms} ms${d.kept ? ', kept: too close to switch' : ''}): ${d.prompt}`,
+            : `- **${d.tier}** (score ${d.score.toFixed(2)}, ${d.ms} ms${d.kept ? ', kept: too close to switch' : ''}${d.picked !== d.tier && !d.kept ? `, ${d.picked} is off` : ''}): ${d.prompt}`,
         )
       : ['No prompts routed yet in this session.']
     const asks = cfg.backend === 'jev' ? `Jev (${cfg.model})` : `${cfg.model}, device ${cfg.device}`
     return {
       text: [
-        `tier-router ${VERSION} is ${isOn ? 'on' : 'off'}. Decision model: ${asks}. Models: ${models.haiku}, ${models.sonnet}, ${models.opus}.`,
+        `tier-router ${VERSION} is ${routing ? 'on' : 'off'}. Decision model: ${asks}. Picks from: ${TIERS.filter(t => enabled.has(t)).map(t => models[t]).join(', ') || 'nothing (/router models)'}.`,
         ...(rt.note ? [rt.note] : []),
         '',
         ...lines,
@@ -266,8 +306,8 @@ export const register: Register = (on, options) => {
   })
 
   on('turn.start', async ($, e, next) => {
-    if (isOn && e.agentId === undefined && e.text.trim()) {
-      const pending = decide($, cfg, rt.url, e.text, lastReply, current)
+    if (routing && e.agentId === undefined && e.text.trim()) {
+      const pending = decide($, cfg, rt.url, e.text, lastReply, current, enabled)
       turns.set(e.turnId, pending)
       void pending.then(d => {
         if (typeof d !== 'string') current = d.tier

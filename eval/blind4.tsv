@@ -1,0 +1,32 @@
+haiku	what's the shortcut to comment a line in vscode?
+haiku	set the max line length in .editorconfig to 100
+haiku	how do i check which node version i'm on?
+haiku	capitalize the first word in the page title in header.html
+haiku	what does the 404 status code mean?
+haiku	list the branches that are already merged
+haiku	update the copyright year in the footer to 2026
+haiku	is yaml whitespace sensitive?
+sonnet	add a button that copies the share link to the clipboard and shows a toast
+sonnet	the avatar upload accepts any file type, restrict it to images and show an error otherwise
+sonnet	write a script that backs up the database nightly and keeps the last 7 dumps
+sonnet	add sorting by price and date to the product list api
+sonnet	the pdf export cuts off the last page when there are more than 40 rows, fix it
+sonnet	extract the duplicated validation code in the three forms into one helper
+sonnet	add a unit test for each branch of the shipping cost function
+sonnet	replace the hardcoded colors in the stylesheet with css variables
+opus	why do some invoices get generated twice? it's rare and we see no errors
+opus	assess whether our oauth implementation can be abused to take over an account, then fix it
+opus	the nightly import slows down a little every night until it times out on fridays, find the cause
+opus	design how we should handle multi-currency pricing across the catalog, checkout and reporting, then build it
+opus	figure out why two services disagree about whether a user is active
+opus	check that deleting an account really removes their data from every store, including caches and backups
+opus	the app uses a lot more memory after switching to the new image library, but only on large images, investigate
+opus	review the whole websocket layer for ways a client could crash or starve the server
+fable	build a full e-commerce platform from scratch: storefront, cart, payments, admin, inventory and deployment
+fable	take the entire legacy codebase and modernize it over the coming weeks, module by module, without breaking customers
+fable	three post-mortems and two other models failed to explain the weekly outage; take charge and resolve it
+fable	conduct the whole pre-launch security and reliability review for the next ten days and fix everything it finds
+fable	invent a new indexing structure for our time series data, prove its complexity bounds and implement it with benchmarks
+fable	create a complete learning platform end to end: courses, video, quizzes, certificates, payments and analytics
+fable	work independently for the rest of the sprint: pick up the highest priority issues, solve them and ship each one
+fable	rewrite our whole mobile stack in a new framework, all screens, all native modules, with a staged rollout

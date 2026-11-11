@@ -1,0 +1,18 @@
+{
+  "w_tier": 1,
+  "w_deep": 0,
+  "w_frontier": 2,
+  "w_effort": 2,
+  "w_hard": 0.5,
+  "w_symptom": 1,
+  "w_check": 0,
+  "w_scope": 0,
+  "w_act": 0,
+  "w_extreme": 1,
+  "w_long": 0,
+  "w_simple": 0,
+  "w_quick": 0,
+  "t_sonnet": 0.08537777777777777,
+  "t_opus": 0.23555555555555557,
+  "t_fable": 0.5740444444444445
+}

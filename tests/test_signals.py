@@ -28,6 +28,29 @@ CASES = [
     ("act", "תתקן את הבאג ותריץ את הבדיקות", True),
     ("act", "תריץ את הבדיקות", False),
     ("act", "תתקן את הבאג ותבדוק שזה עובד", True),
+    ("check", "check if the vault really keeps keys apart", True),
+    ("check", "see whether the failover actually works", True),
+    ("check", "the button really is blue", False),
+    ("symptom", "the job fails even though the config looks right", True),
+    ("symptom", "it only happens after a deploy", True),
+    ("symptom", "only change it in utils.py", False),
+    ("check", "תבדוק אם הגיבוי באמת עובד", True),
+    ("symptom", "זה נכשל למרות שההגדרות נראות נכונות", True),
+    ("extreme", "own the migration for the next two weeks", True),
+    ("extreme", "take ownership of the roadmap and keep going until it ships", True),
+    ("extreme", "nobody found it after three post-mortems", True),
+    ("extreme", "rename the variable for the next function", False),
+    ("extreme", "תנהל את הפרויקט במשך השבועיים הקרובים", True),
+    ("extreme", "תיקח בעלות על הפלטפורמה", True),
+    ("extreme", "תשנה את שם המשתנה בפונקציה הבאה", False),
+    ("extreme", "build the whole platform from scratch", True),
+    ("extreme", "work autonomously overnight on every open issue", True),
+    ("extreme", "opus already failed on this, take it over", True),
+    ("extreme", "תבנה את כל הפלטפורמה מאפס", True),
+    ("extreme", "תעבוד באופן אוטונומי במשך הלילה", True),
+    ("extreme", "implement end to end encryption for the chat feature", False),
+    ("extreme", "add pagination to the /users endpoint", False),
+    ("extreme", "תוסיף עימוד ל-endpoint של /users", False),
 ]
 QUICK_CASES = [
     ("push it", True),
@@ -63,6 +86,10 @@ def test_families():
     assert family("laya") == "laya" and family("laya:421m-english-bf16") == "laya"
     assert family("tev1:0.8b") == "tev1" and family("jev-latest") == "tev1"
     assert weights_file("tev1").name == "weights.json"
+    assert weights_file("tev1:0.8b").name == "weights.json"
+    assert weights_file("laya").name == "weights-laya.json"
+    # Jev is shown tev1's state but routes with weights fitted on its own answers.
+    assert weights_file("jev-latest").name == "weights-jev.json"
     print("ok  model families")
 
 

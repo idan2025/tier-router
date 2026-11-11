@@ -7,10 +7,10 @@ assistant reply and the user's new message, both trimmed. laya, a smaller
 decision model on the same endpoint, can be asked instead (ROUTER_MODEL=laya);
 it gets a shorter state and its own fitted weights (PROFILES).
 
-Four questions go in one call. Their answers, and a handful of keyword
-signals, are folded into one difficulty score in [0, 1]; two thresholds turn
-it into haiku, sonnet or opus. The weights and thresholds are fitted on
-eval/ (see eval/tune.py) and live in weights.json.
+Five questions go in one call. Their answers, and a handful of keyword
+signals, are folded into one difficulty score in [0, 1]; three thresholds turn
+it into haiku, sonnet, opus or fable (the high end, above Opus). The weights
+and thresholds are fitted on eval/ (see eval/tune.py) and live in weights.json.
 """
 
 import json
@@ -28,7 +28,7 @@ MODEL = os.environ.get("ROUTER_MODEL") or os.environ.get("TEV1_MODEL", "tev1")
 BACKEND = os.environ.get("ROUTER_BACKEND", "ollama")
 JEV_URL = os.environ.get("TYPESAFE_URL", "https://api.typesafe.ai").rstrip("/")
 JEV_MODEL = os.environ.get("JEV_MODEL", "jev-latest")
-TIERS = ("haiku", "sonnet", "opus")
+TIERS = ("haiku", "sonnet", "opus", "fable")
 
 # The decision models the router knows, by family (the name before any tag):
 # the first Ollama release that serves it, and how many characters of the
@@ -59,6 +59,7 @@ QUESTIONS = {
             "haiku": "A quick answer from general knowledge, a status question, or one or two obvious commands or a tiny edit.",
             "sonnet": "A normal, well-defined coding task: build a feature, write a script or tests, fix a bug whose error is known.",
             "opus": "Hard work: find an unknown root cause, design or architect something, review a lot of code, or change a large system carefully.",
+            "fable": "The hardest, longest work: build or rebuild a whole system or product end to end, a novel design that needs research or proofs, a long autonomous job across many parts, or a problem a strong model already failed at.",
         },
     },
     "simple": {
@@ -69,6 +70,10 @@ QUESTIONS = {
         "type": "noul",
         "instructions": "Does the user's new request need investigating an unknown cause, designing something, reviewing a lot of code, or carefully changing many parts of a system?",
     },
+    "frontier": {
+        "type": "noul",
+        "instructions": "Is the user's new request among the hardest and longest work there is: a whole system or product built or rebuilt end to end, a novel design that needs research or proofs, a long autonomous job across many parts, or a problem a strong model already failed at?",
+    },
     "effort": {
         "type": "score",
         "instructions": "How much work does the user's new request take?",
@@ -78,6 +83,7 @@ QUESTIONS = {
             "A normal feature, script, or a bug with a clear error.",
             "A multi-step investigation or a large change.",
             "A hard open-ended problem: unknown root cause, architecture, security, or a big review.",
+            "Extreme: a whole system end to end, novel research or proofs, a long autonomous job, or a problem others already failed at.",
         ],
     },
 }
@@ -96,15 +102,30 @@ SIGNALS = {
         r"\b(why|randomly|sometimes|intermittent\w*|stall\w*|hang\w*|desync\w*|spikes?|"
         r"(is|are|shows?|goes|went) down|broken|(does ?n[o']?t|never|not) "
         r"(work|go|reach|route|match|update|see|show|start)\w*|disagree|out of order|got worse|"
-        r"can'?t reproduce|nothing in the logs|nothing obvious)\b", re.I),
+        r"can'?t reproduce|nothing in the logs|nothing obvious|even though|"
+        r"only (when|happens|after|on (some|certain|one))|but (only|just) (when|on|for|after))\b", re.I),
     # Is it safe, secure, isolated, correct: an open-ended check.
     "check": re.compile(
         r"\b(safe|secure|security|isolat\w*|contained|vulnerab\w*|replay|check (if|whether|that|why|out)|"
-        r"verify|is (it|this|our) (correct|right|ok))\b", re.I),
+        r"verify|is (it|this|our) (correct|right|ok)|"
+        r"(check|test|confirm|make sure|see) (if|whether|that) .{0,60}\b(actually|really)\b|"
+        r"\b(actually|really) (works?|isolat\w*|holds?|survives?|safe|secure|recovers?|restores?)\b)", re.I),
     # Everything at once.
     "scope": re.compile(
         r"\b(everything|whole|entire|all of (it|them)|fix all|before (the|we) (release|cut|ship)|"
         r"next cut|fully real|placeholder|anything (needs|else|that)|across \d+)\b", re.I),
+    # The high end: a whole system end to end, research, proofs, a long
+    # autonomous job, or a problem a strong model already failed at.
+    "extreme": re.compile(
+        r"\b(from scratch|end[- ]to[- ]end (?!encrypt)|entire (project|system|platform|product|codebase|stack|game)|"
+        r"whole (system|platform|product|codebase|stack|project|monorepo)|every (repo|service|package|issue|finding|module)\w*|"
+        r"all \d+ (services|repos|packages|modules)|autonomous\w*|overnight|multi-(week|day)|for (a|the whole) (day|week)|"
+        r"formal\w* (proof|verif\w*|model\w*)|prove (it|that)? ?.{0,30}(secure|correct|safe)|novel|state of the art|research\w*|"
+        r"nobody (could|has|on the team)|(opus|the previous model|another model) (already )?(failed|couldn'?t|could not)|"
+        r"full ownership|take (full )?ownership|take (it )?over|hardest|"
+        r"(for|over|through) (the )?(rest of the|next|coming|following) (few |two |three |several )?(days|weeks|months|quarter|sprint)|"
+        r"after (two|three|four|five|\d+) (post-?mortems|attempts|engineers)|(until|keep going until) (it|this) (ships|is done|launches)|"
+        r"run the (whole|entire|full) \w+( \w+)? (program|rewrite|migration|launch|effort))", re.I),
     # More than one action in one instruction: work, not a one-liner.
     "act": re.compile(
         r"\b(and|then) (test|verify|release|deploy|implement|build|fix|run|check|update)\b", re.I),
@@ -132,13 +153,21 @@ HEBREW = {
         r"לא מסונכרן|נפל|נופל|לא זמין|שבור|נשבר|"
         r"לא (?:עובד|עובדת|עולה|מגיע|מגיעים|מנתב|תואמ|מתעדכן|רואה|רואים|מציג|מתחיל|מצליח)|אף פעם|"
         r"לא מסכימים|לא תואמ|לא לפי הסדר|שלא לפי הסדר|הורע|החמיר|לא מצליח[א-ת]* לשחזר|"
-        r"אי אפשר לשחזר|אין כלום בלוגים|שום דבר בולט|שום דבר ברור"),
+        r"אי אפשר לשחזר|אין כלום בלוגים|שום דבר בולט|שום דבר ברור|למרות ש|"
+        r"רק (?:כש|כאשר|אחרי|בחלק)"),
     "check": (
         r"בטוח|מאובטח|אבטחה|בידוד|מבודד|פגיעו|replay|תבדוק (?:אם|האם|ש|למה)|תוודא|לוודא|תאמת|"
-        r"האם (?:זה|הוא|היא) (?:נכון|תקין)"),
+        r"האם (?:זה|הוא|היא) (?:נכון|תקין)|באמת (?:עובד|עובדת|עובדים|מבודד|מבודדת|בטוח|בטוחה|מחזיק|שורד)"),
     "scope": (
         r"הכל|כל ה(?:מערכת|קוד|בסיס|פרויקט)|כולו|כל מה ש|לפני השחרור|לפני שאנחנו משחררים|על פני \d+"),
     "act": r"(?:ו|ואז |אחר כך )(?:תבדוק|תריץ|תבנה|תתקן|תממש|תעדכן|תפרוס|תוודא)",
+    "extreme": (
+        r"מאפס|מקצה לקצה|את כל ה(?:מערכת|פלטפורמה|מוצר|פרויקט|משחק|קוד)|כל המערכת|כל הפלטפורמה|"
+        r"כל (?:ה)?(?:ריפו|שירות|חבילה|באג|ממצא|מודול)[א-ת]*|באופן אוטונומי|אוטונומי|במשך הלילה|כל הלילה|"
+        r"(?:כמה|מספר) (?:שבועות|ימים)|הוכחה פורמלית|אימות פורמלי|תוכיח ש|חדשני|מחקר|תחקור את המצב|"
+        r"אף אחד (?:לא הצליח|בצוות)|(?:opus|המודל הקודם) (?:כבר )?(?:נכשל|לא הצליח)|אחריות מלאה|תיקח (?:את זה|בעלות|אחריות)|הכי קשה|"
+        r"(?:במשך|לאורך|עד סוף) ה?(?:שבוע|שבועיים|ימים|חודש|חודשים|רבעון)(?: הקרוב(?:ים)?)?|(?:בשבועיים|בימים|בחודשים) הקרוב(?:ים)?|"
+        r"אחרי (?:שניים|שלושה|ארבעה|\d+) (?:post-?mortems|ניסיונות|מהנדסים)|תמשיך עד ש"),
 }
 HEBREW_QUICK = (
     r"^\s*(?:(?:כן|בסדר|אוקיי)[,\s]*)?(?:בבקשה\s+)?(?:רק\s+)?"
@@ -150,19 +179,30 @@ QUICK = re.compile(QUICK.pattern + "|" + HEBREW_QUICK, re.I)
 WEIGHTS_FILE = Path(__file__).with_name("weights.json")
 
 
-def weights_file(model=MODEL):
-    """tev1's (and Jev's) weights are weights.json; another family's are
-    weights-<family>.json, fitted on that model's own answers."""
-    f = family(model)
+def weights_family(model):
+    """Whose fitted weights a model uses: Jev's own (`jev-latest` -> `jev`),
+    though it is shown tev1's state, else its family's."""
+    name = model.partition(":")[0].rsplit("/", 1)[-1]
+    return "jev" if name.startswith("jev") else family(model)
+
+
+def weights_file(model=None):
+    """tev1's weights are weights.json; Jev's and every other family's are
+    weights-<family>.json, each fitted on that model's own answers."""
+    if model is None:
+        model = JEV_MODEL if BACKEND == "jev" else MODEL
+    f = weights_family(model)
     return WEIGHTS_FILE if f == "tev1" else WEIGHTS_FILE.with_name(f"weights-{f}.json")
-POSITIVE = ("tier", "deep", "effort", "hard", "symptom", "check", "scope", "act", "long")
+POSITIVE = ("tier", "deep", "frontier", "effort", "hard", "symptom", "check", "scope", "act", "extreme", "long")
 NEGATIVE = ("simple", "quick")
 DEFAULT_WEIGHTS = {
-    "w_tier": 1.0, "w_deep": 0.5, "w_effort": 1.0, "w_hard": 0.5, "w_symptom": 0.5,
-    "w_check": 0.5, "w_scope": 0.5, "w_act": 0.5, "w_long": 0.0,
+    "w_tier": 1.0, "w_deep": 0.5, "w_frontier": 0.5, "w_effort": 1.0, "w_hard": 0.5, "w_symptom": 0.5,
+    "w_check": 0.5, "w_scope": 0.5, "w_act": 0.5, "w_extreme": 0.5, "w_long": 0.0,
     "w_simple": 0.5, "w_quick": 0.5,
-    "t_sonnet": 0.35, "t_opus": 0.65,
+    "t_sonnet": 0.3, "t_opus": 0.55, "t_fable": 0.8,
 }
+# Each tier's lower threshold, in order; haiku has none.
+CUTS = tuple("t_" + t for t in TIERS[1:])
 
 
 def load_weights(model=None):
@@ -216,10 +256,13 @@ def features(prompt, answers):
     t = answers["tier"]["probabilities"]
     levels = len(QUESTIONS["effort"]["criteria"]) - 1
     text = _trim(prompt, 4000)
+    top = len(TIERS) - 1
     f = {
-        "tier": t.get("sonnet", 0) * 0.5 + t.get("opus", 0),
+        # The expected rank of the tier the model would pick, in [0, 1].
+        "tier": sum(t.get(name, 0) * i / top for i, name in enumerate(TIERS)),
         "simple": answers["simple"]["noul"],
         "deep": answers["deep"]["noul"],
+        "frontier": answers.get("frontier", {}).get("noul", 0),
         "effort": answers["effort"].get("score", 0) / levels,
         "long": min(len(text) / 1500, 1.0),
     }
@@ -241,11 +284,28 @@ def score(f, w):
 
 
 def tier_for(s, w):
-    if s >= w["t_opus"]:
-        return "opus"
-    if s >= w["t_sonnet"]:
-        return "sonnet"
+    for tier, cut in reversed(list(zip(TIERS[1:], CUTS))):
+        if s >= w[cut]:
+            return tier
     return "haiku"
+
+
+def edge(s, w):
+    """How close a score is to any threshold."""
+    return min(abs(s - w[c]) for c in CUTS)
+
+
+def allowed(tier, enabled):
+    """The tier to use when only `enabled` tiers may be picked: the tier itself,
+    else the nearest enabled one above it (a hard task is never sent lower when
+    a higher model is on), else the nearest below; None when none is enabled."""
+    if tier in enabled:
+        return tier
+    i = TIERS.index(tier)
+    for t in TIERS[i + 1:] + TIERS[:i][::-1]:
+        if t in enabled:
+            return t
+    return None
 
 
 def classify(prompt, context="", weights=None):

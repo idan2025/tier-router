@@ -86,6 +86,10 @@ def test_families():
     assert family("laya") == "laya" and family("laya:421m-english-bf16") == "laya"
     assert family("tev1:0.8b") == "tev1" and family("jev-latest") == "tev1"
     assert weights_file("tev1").name == "weights.json"
+    assert weights_file("tev1:0.8b").name == "weights.json"
+    assert weights_file("laya").name == "weights-laya.json"
+    # Jev is shown tev1's state but routes with weights fitted on its own answers.
+    assert weights_file("jev-latest").name == "weights-jev.json"
     print("ok  model families")
 
 

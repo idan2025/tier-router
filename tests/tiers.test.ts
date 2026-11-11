@@ -5,8 +5,8 @@
 
 import { expect, test } from 'claude-code/testing'
 
-import { allowed, edge, features, score, tierFor, TIERS, type Tier } from '../hooks/classify.ts'
-import { WEIGHTS } from '../hooks/model.ts'
+import { allowed, edge, features, score, tierFor, TIERS, weightsFor, type Tier } from '../hooks/classify.ts'
+import { WEIGHTS, WEIGHTS_BY_FAMILY } from '../hooks/model.ts'
 
 const on = (...t: Tier[]) => new Set<Tier>(t)
 
@@ -37,4 +37,13 @@ test("the model's fable answer and the frontier question raise the score", async
   expect(fable.tier).toBe(1)
   expect(Math.abs(opus.tier! - 2 / 3)).toBeLessThan(1e-9)
   expect(score(fable)).toBeGreaterThan(score(opus))
+})
+
+test('each decision model routes with the weights fitted on its own answers', async () => {
+  expect(weightsFor('tev1')).toEqual(WEIGHTS_BY_FAMILY.tev1!)
+  expect(weightsFor('tev1:0.8b')).toEqual(WEIGHTS_BY_FAMILY.tev1!)
+  expect(weightsFor('laya:421m-english-bf16')).toEqual(WEIGHTS_BY_FAMILY.laya!)
+  // Jev is shown tev1's state, but its weights are its own.
+  expect(weightsFor('jev-latest')).toEqual(WEIGHTS_BY_FAMILY.jev!)
+  expect(WEIGHTS_BY_FAMILY.jev).not.toEqual(WEIGHTS_BY_FAMILY.tev1)
 })

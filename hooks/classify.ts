@@ -36,9 +36,16 @@ export function profile(model: string): { min_ollama: string; context_chars: num
   return PROFILES[family(model)] ?? PROFILES.tev1!
 }
 
+/** Whose fitted weights a model uses: Jev's own (`jev-latest` -> `jev`), though it is
+ * shown tev1's state, else its family's. */
+export function weightsFamily(model: string): string {
+  const name = (model.split(':', 1)[0] ?? '').split('/').pop() ?? ''
+  return name.startsWith('jev') ? 'jev' : family(model)
+}
+
 /** The fitted weights for a decision model. */
 export function weightsFor(model: string): Record<string, number> {
-  return WEIGHTS_BY_FAMILY[family(model)] ?? WEIGHTS
+  return WEIGHTS_BY_FAMILY[weightsFamily(model)] ?? WEIGHTS
 }
 
 /** What the decision model is shown: tev1's context is about 2,000 tokens,

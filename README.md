@@ -39,9 +39,9 @@ and `jevApiKey` in `/plugin` (or under `pluginConfigs`); `jevModel` (default `je
 Jev is billed per input token and the prompt text leaves your machine, which tev1 never does. For the Python
 eval and proxy, set `ROUTER_BACKEND=jev` and `TYPESAFE_API_KEY`.
 
-**The thresholds were fitted on tev1's answers.** Jev's probabilities differ, so rerun
-`python3 -I eval/collect.py` and `eval/tune.py --blind` with `ROUTER_BACKEND=jev` before trusting its tiers
-(`eval/cache.json` holds tev1's answers, so move it aside first).
+**Each decision model has its own weights**, fitted on its own answers: tev1's in `tier_router/weights.json`,
+Jev's in `tier_router/weights-jev.json`, laya's in `tier_router/weights-laya.json`. Jev is shown the same state as tev1;
+only the weights differ.
 
 ## Choosing the decision model and where it runs
 
@@ -125,7 +125,7 @@ If the decision model is unreachable or takes more than 8 s, the turn keeps your
 
 ## How well it works
 
-**Fitted on Jev's answers** (Jev is TypeSafe's cloud decision model; tev1 shares the weights, see below). The four-tier
+**Jev** (TypeSafe's cloud decision model) first; tev1 and laya, each with weights fitted on its own answers, below. The four-tier
 weights were fitted on 378 labeled prompts: 189 written for this (`eval/synthetic.tsv`) and their line-for-line Hebrew
 translations (`eval/hebrew_synthetic.tsv`). Four blind sets were written after the fit and scored only once each:
 `blind.tsv` (60 prompts), `blind2.tsv` (32), `blind3.tsv` (36) and `blind4.tsv` (32), every one with a Hebrew twin. The cost rules count an Opus or Fable task sent too low as the worst mistake.
@@ -147,8 +147,6 @@ Caveats:
   strong model. Opus-level work sent below Opus is 2 of 156 blind tasks (both languages).
 - **blind, blind2 and blind3 were looked at between rounds** and the keyword rules were extended with general rules for
   what they showed (checks that something *really* holds, "even though", time horizons); only `blind4` is clean of that.
-- **tev1 shares these weights**, as Jev always has, but its probabilities differ: rerun `eval/collect.py` and
-  `eval/tune.py --blind` with `ROUTER_MODEL=tev1` (its own cache) before trusting its Fable tier.
 
 **Hebrew.** The same prompts translated line for line, with the same labels, so any gap is the cost of the language.
 The Hebrew keyword rules are a translation of the English ones; the weights are shared and were never fitted on Hebrew
@@ -163,6 +161,20 @@ alone.
 
 `python3 -I eval/lang.py` reruns English against Hebrew.
 
+**tev1.** Refitted for the four tiers on its own answers to the same 378 training prompts (English and Hebrew), then
+scored on the same eight blind sets. Before this it routed with Jev's weights: 85% English, 81% Hebrew.
+
+| | English (160) | Hebrew (160) | Hard tasks sent below Opus | Fable tasks missed |
+| --- | --- | --- | --- | --- |
+| **tier-router with tev1** | **95%** (152) | **88%** (141) | 2 of 156 | 12 of 78 |
+| tier-router with tev1, 5-fold cross-validation on the 378 | 91% (both) | | 4 of 190 | 12 of 80 |
+| by set: `blind` / `blind2` / `blind3` / `blind4` | 93% / 97% / 94% / 97% | 85% / 94% / 92% / 84% | | |
+
+tev1's own choice gets 77% of the 320 blind prompts. In English the router with tev1 is about as accurate as with Jev
+(95% against 96%); in Hebrew it is behind (88% against 92.5%), almost all of it Fable work in Hebrew sent to Opus
+(11 of 39). Finer weight grids and more Hebrew keyword phrases were tried and scored worse in cross-validation, so they
+are not used.
+
 **laya.** Refitted for the four tiers on its own answers to the 189 English training prompts (never the Hebrew ones), then
 scored on the four English blind sets (160 prompts):
 
@@ -173,7 +185,7 @@ scored on the four English blind sets (160 prompts):
 | tier-router with laya, 5-fold cross-validation on the 189 | 73% | 5 of 95 | 10 of 40 |
 | by set: `blind` / `blind2` / `blind3` / `blind4` | 85% / 78% / 89% / 75% | | |
 
-laya is far less accurate than Jev (96% on the same sets). Its own choice sends nearly every easy task to a high tier, and
+laya is far less accurate than Jev or tev1 (96% and 95% on the same sets). Its own choice sends nearly every easy task to a high tier, and
 the router's rules and weights correct much of that, but it also sends 7 of 82 easy tasks high. Use tev1 or Jev when the
 tier matters; laya is for when you want a 0.8 GB model that answers in about 0.3 s.
 
@@ -188,7 +200,8 @@ python3 -I eval/tune.py --blind --write
 
 `--write` updates `tier_router/weights.json` and regenerates `hooks/model.ts`, which the plugin reads.
 Prefix both with `ROUTER_MODEL=laya` to tune laya instead: its answers are cached in `eval/cache-laya.json` and its
-weights go to `tier_router/weights-laya.json`.
+weights go to `tier_router/weights-laya.json`. With `ROUTER_BACKEND=jev` (and `TYPESAFE_API_KEY`) it is Jev's:
+`eval/cache-jev.json` and `tier_router/weights-jev.json`.
 The plugin's TypeScript and the evaluation's Python compute the same scores.
 
 ## Without the plugin: the proxy

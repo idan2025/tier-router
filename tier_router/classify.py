@@ -179,10 +179,19 @@ QUICK = re.compile(QUICK.pattern + "|" + HEBREW_QUICK, re.I)
 WEIGHTS_FILE = Path(__file__).with_name("weights.json")
 
 
-def weights_file(model=MODEL):
-    """tev1's (and Jev's) weights are weights.json; another family's are
-    weights-<family>.json, fitted on that model's own answers."""
-    f = family(model)
+def weights_family(model):
+    """Whose fitted weights a model uses: Jev's own (`jev-latest` -> `jev`),
+    though it is shown tev1's state, else its family's."""
+    name = model.partition(":")[0].rsplit("/", 1)[-1]
+    return "jev" if name.startswith("jev") else family(model)
+
+
+def weights_file(model=None):
+    """tev1's weights are weights.json; Jev's and every other family's are
+    weights-<family>.json, each fitted on that model's own answers."""
+    if model is None:
+        model = JEV_MODEL if BACKEND == "jev" else MODEL
+    f = weights_family(model)
     return WEIGHTS_FILE if f == "tev1" else WEIGHTS_FILE.with_name(f"weights-{f}.json")
 POSITIVE = ("tier", "deep", "frontier", "effort", "hard", "symptom", "check", "scope", "act", "extreme", "long")
 NEGATIVE = ("simple", "quick")

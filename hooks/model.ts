@@ -70,25 +70,25 @@ export const PROFILES: Record<string, { min_ollama: string; context_chars: numbe
   }
 }
 
-/** Fitted weights per decision-model family; Jev uses tev1's. */
+/** Fitted weights per decision-model family, and Jev's own. */
 export const WEIGHTS_BY_FAMILY: Record<string, Record<string, number>> = {
   "tev1": {
-    "w_tier": 1,
-    "w_deep": 0,
+    "w_tier": 2,
+    "w_deep": 1,
     "w_frontier": 2,
     "w_effort": 2,
-    "w_hard": 0.5,
+    "w_hard": 0,
     "w_symptom": 1,
-    "w_check": 0,
+    "w_check": 1,
     "w_scope": 0,
     "w_act": 0,
     "w_extreme": 1,
     "w_long": 0,
-    "w_simple": 0,
-    "w_quick": 0,
-    "t_sonnet": 0.08537777777777777,
-    "t_opus": 0.23555555555555557,
-    "t_fable": 0.5740444444444445
+    "w_simple": 1,
+    "w_quick": 2,
+    "t_sonnet": 0.2823837291977469,
+    "t_opus": 0.41059769262432444,
+    "t_fable": 0.6210692474846293
   },
   "laya": {
     "w_tier": 2,
@@ -107,6 +107,24 @@ export const WEIGHTS_BY_FAMILY: Record<string, Record<string, number>> = {
     "t_sonnet": 0.21351223411651726,
     "t_opus": 0.26735599932158755,
     "t_fable": 0.38886394870705954
+  },
+  "jev": {
+    "w_tier": 1,
+    "w_deep": 0,
+    "w_frontier": 2,
+    "w_effort": 2,
+    "w_hard": 0.5,
+    "w_symptom": 1,
+    "w_check": 0,
+    "w_scope": 0,
+    "w_act": 0,
+    "w_extreme": 1,
+    "w_long": 0,
+    "w_simple": 0,
+    "w_quick": 0,
+    "t_sonnet": 0.08537777777777777,
+    "t_opus": 0.23555555555555557,
+    "t_fable": 0.5740444444444445
   }
 }
 
